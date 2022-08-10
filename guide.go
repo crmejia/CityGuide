@@ -1,6 +1,8 @@
 package guide
 
 import (
+	"embed"
+	_ "embed"
 	"errors"
 	"html/template"
 	"log"
@@ -43,15 +45,20 @@ func NewGuide(name string, opts ...guideOption) (guide, error) {
 	}
 	return g, nil
 }
+
+//go:embed templates
+var fs embed.FS
+
 func IndexHandler(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles("templates/index.html")
+	tmpl, err := template.ParseFS(fs, "templates/index.html")
+	//template.ParseFiles("templates/index.html")
 	if err != nil {
-		http.Error(w, "cannot load template", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	err = tmpl.Execute(w, nil)
 	if err != nil {
-		http.Error(w, "cannot execute template", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }

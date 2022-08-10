@@ -1,0 +1,11 @@
+[Unit]
+Description=cityguide
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5s
+ExecStart=/home/cityguide/go/main
+
+[Install]
+WantedBy=multi-user.target
