@@ -1,18 +1,10 @@
 package guide
 
 import (
-	"embed"
 	_ "embed"
 	"errors"
-	"html/template"
-	"log"
-	"net/http"
-	"strconv"
 )
 
-type Controller struct {
-	Guides map[int]Guide
-}
 type Guide struct {
 	Name       string
 	Coordinate Coordinate
@@ -86,52 +78,4 @@ func (g *Guide) NewPointOfInterest(name string, latitude float64, longitude floa
 	}
 	g.pois[poi.Coordinate] = poi
 	return nil
-}
-
-//go:embed templates
-var fs embed.FS
-
-func IndexHandler(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFS(fs, "templates/index.html")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	err = tmpl.Execute(w, nil)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
-
-func (c *Controller) GuideHandler(w http.ResponseWriter, r *http.Request) {
-	guideID := r.FormValue("guideid")
-	if guideID == "" {
-		http.Error(w, "no guideid provided", http.StatusBadRequest)
-		return
-	}
-	id, err := strconv.Atoi(guideID)
-	if err != nil {
-		http.Error(w, "unparsable Guide id", http.StatusBadRequest)
-	}
-	g, ok := c.Guides[id]
-	if !ok {
-		http.Error(w, "Guide not found", http.StatusNotFound)
-	}
-
-	tmpl, err := template.ParseFS(fs, "templates/index.html")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	err = tmpl.Execute(w, g)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
-
-func ServerRun(address string) {
-	http.HandleFunc("/", IndexHandler)
-	log.Fatal(http.ListenAndServe(address, nil))
 }
