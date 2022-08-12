@@ -11,13 +11,13 @@ import (
 
 func TestIndexHandler(t *testing.T) {
 	t.Parallel()
-	store := guide.MemoryStore{
-		Guides: map[guide.Coordinate]guide.Guide{
-			guide.Coordinate{10, 10}: guide.Guide{Name: "Nairobi", Coordinate: guide.Coordinate{10, 10}},
-			guide.Coordinate{11, 11}: guide.Guide{Name: "Fukuoka", Coordinate: guide.Coordinate{11, 11}},
-			guide.Coordinate{12, 12}: guide.Guide{Name: "Guia de restaurantes Roma, CDMX", Coordinate: guide.Coordinate{12, 12}},
-			guide.Coordinate{13, 13}: guide.Guide{Name: "Guia de Cuzco", Coordinate: guide.Coordinate{13, 13}},
-		}}
+	store := guide.OpenMemoryStore()
+	store.Guides = map[int]guide.Guide{
+		1:    guide.Guide{Name: "Nairobi", Coordinate: guide.Coordinate{10, 10}},
+		5:    guide.Guide{Name: "Fukuoka", Coordinate: guide.Coordinate{11, 11}},
+		2345: guide.Guide{Name: "Guia de restaurantes Roma, CDMX", Coordinate: guide.Coordinate{12, 12}},
+		919:  guide.Guide{Name: "Guia de Cuzco", Coordinate: guide.Coordinate{13, 13}},
+	}
 	server, err := guide.NewServer("locahost:8080", &store)
 	if err != nil {
 		t.Fatal(err)

@@ -9,11 +9,11 @@ import (
 )
 
 type Server struct {
-	store *MemoryStore
+	store *memoryStore
 	*http.Server
 }
 
-func NewServer(address string, store *MemoryStore) (Server, error) {
+func NewServer(address string, store *memoryStore) (Server, error) {
 	if address == "" {
 		return Server{}, errors.New("server address cannot be empty")
 	}
@@ -57,11 +57,11 @@ func (s *Server) HandleIndex() http.HandlerFunc {
 //		http.Error(w, "no guideid provided", http.StatusBadRequest)
 //		return
 //	}
-//	id, err := strconv.Atoi(guideID)
+//	Id, err := strconv.Atoi(guideID)
 //	if err != nil {
-//		http.Error(w, "unparsable Guide id", http.StatusBadRequest)
+//		http.Error(w, "unparsable Guide Id", http.StatusBadRequest)
 //	}
-//	//g, ok := c.Guides[id]
+//	//g, ok := c.Guides[Id]
 //	if !ok {
 //		http.Error(w, "Guide not found", http.StatusNotFound)
 //	}
@@ -87,12 +87,12 @@ func (s *Server) Run() {
 }
 
 func ServerRun(address string) {
-	store := MemoryStore{
-		Guides: map[Coordinate]Guide{
-			Coordinate{10, 10}: Guide{Name: "Nairobi", Coordinate: Coordinate{10, 10}},
-			Coordinate{11, 11}: Guide{Name: "Fukuoka", Coordinate: Coordinate{11, 11}},
-			Coordinate{12, 12}: Guide{Name: "Guia de restaurantes Roma, CDMX", Coordinate: Coordinate{12, 12}},
-			Coordinate{13, 13}: Guide{Name: "Guia de Cuzco", Coordinate: Coordinate{13, 13}},
+	store := memoryStore{
+		Guides: map[int]Guide{
+			1: Guide{Name: "Nairobi", Coordinate: Coordinate{10, 10}},
+			2: Guide{Name: "Fukuoka", Coordinate: Coordinate{11, 11}},
+			3: Guide{Name: "Guia de restaurantes Roma, CDMX", Coordinate: Coordinate{12, 12}},
+			4: Guide{Name: "Guia de Cuzco", Coordinate: Coordinate{13, 13}},
 		}}
 	s, err := NewServer(address, &store)
 	if err != nil {

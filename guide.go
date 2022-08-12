@@ -6,6 +6,7 @@ import (
 )
 
 type Guide struct {
+	Id         int
 	Name       string
 	Coordinate Coordinate
 	pois       map[Coordinate]pointOfInterest
