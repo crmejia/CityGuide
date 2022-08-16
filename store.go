@@ -20,7 +20,7 @@ func (s *memoryStore) Get(id int) (*Guide, error) {
 	if ok {
 		return &guide, nil
 	}
-	return nil, nil
+	return nil, errors.New("guide not found")
 }
 
 func (s *memoryStore) Create(g Guide) (int, error) {

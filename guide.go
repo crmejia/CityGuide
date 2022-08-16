@@ -9,10 +9,11 @@ type Guide struct {
 	Id         int
 	Name       string
 	Coordinate Coordinate
-	pois       map[Coordinate]pointOfInterest
+	Pois       []pointOfInterest
 }
 
 type pointOfInterest struct {
+	Id         int
 	Coordinate Coordinate
 	Name       string
 }
@@ -56,7 +57,7 @@ func NewGuide(name string, opts ...guideOption) (Guide, error) {
 	}
 	g := Guide{
 		Name: name,
-		pois: map[Coordinate]pointOfInterest{},
+		Pois: []pointOfInterest{},
 	}
 
 	for _, opt := range opts {
@@ -77,6 +78,6 @@ func (g *Guide) NewPointOfInterest(name string, latitude float64, longitude floa
 		Coordinate: coordinates,
 		Name:       name,
 	}
-	g.pois[poi.Coordinate] = poi
+	g.Pois = append(g.Pois, poi)
 	return nil
 }

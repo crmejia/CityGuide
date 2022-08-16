@@ -6,8 +6,6 @@
 
     <title>{{ .Name }}</title>
 
-    <link rel="shortcut icon" type="image/x-icon" href="docs/images/favicon.ico" />
-
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css" integrity="sha512-hoalWLoI8r4UszCkZ5kL8vayOGVae1oxXe/2A4AO6J9+580uKHDO3JdHb7NzwwzK5xr/Fs0W40kiNHxM9vyTtQ==" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.8.0/dist/leaflet.js" integrity="sha512-BB3hKbKWOc9Ez/TAwyWxNXeoV9c1v6FIeYiBieIWkpLjauysF18NzgR1MBNBXf8/KABdlkX68nAhlwcDFLGPCQ==" crossorigin=""></script>
 
@@ -25,22 +23,27 @@
     </style>
 </head>
 <body>
-
+<h1> {{.Name}}</h1>
 <div id="map" style="width: 600px; height: 400px;"></div>
 <script>
-    // var map = L.map('map').setView([16.7371, -92.6375], 15);
+    let map = L.map('map').setView([{{.Coordinate.Latitude}}, {{.Coordinate.Longitude}}], 15);
 
-    // var coordinate = {{ .Coordinate}};
-    // var map = L.map('map').setView([Coordinate.Latitude, Coordinate.Longitude ], 15);
-    var map = L.map('map').setView([{{.Coordinate.Latitude}}, {{.Coordinate.Longitude}}], 15);
-
-    var tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    let tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
 
-    // var marker = L.marker([51.5, -0.09]).addTo(map)
+    let pois = {{.Pois}}
+    pois.forEach( function (poi) {
+        let marker = L.marker([poi.Coordinate.Latitude,poi.Coordinate.Longitude]).addTo(map);
+        marker.bindPopup(poi.Name + " TBD description")
+    })
+
+
 </script>
+<div>
+    <a href="/">back</a>
+</div>
 </body>
 </html>
 

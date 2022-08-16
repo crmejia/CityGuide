@@ -5,13 +5,13 @@ import (
 	"testing"
 )
 
-func TestMemoryStore_GetReturnsNilOnNoGuide(t *testing.T) {
+func TestMemoryStore_GetReturnsNilAndErrorOnNoGuide(t *testing.T) {
 	t.Parallel()
 
 	store := guide.OpenMemoryStore()
 	got, err := store.Get(1)
-	if err != nil {
-		t.Fatal(err)
+	if err == nil {
+		t.Errorf("want error on no guide")
 	}
 
 	if got != nil {
