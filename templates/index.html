@@ -17,11 +17,15 @@
     <div id="title"><h1>City Guide</h1></div>
 
     <div id="guideList">
-        {{range .}}
-        <li ><a href="/guide/{{.Id}}">{{.Name}}</li>
-        {{end}}
+        <ul>
+            {{range .}}
+            <li ><a href="/guide/{{.Id}}">{{.Name}}</li>
+            {{end}}
+        </ul>
     </div>
-
+    <div>
+        <a href="/guide/create">Create New Guide</a>
+    </div>
 </body>
 </html>
 

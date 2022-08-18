@@ -3,6 +3,7 @@ package guide
 import (
 	"embed"
 	"errors"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -39,16 +40,7 @@ var fs embed.FS
 
 func (s *Server) HandleIndex() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl, err := template.ParseFS(fs, "templates/index.html")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		err = tmpl.Execute(w, s.store.GetAllGuides())
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		render(w, r, "templates/index.html", s.store.GetAllGuides())
 	}
 }
 
@@ -72,16 +64,41 @@ func (c *Server) HandleGuide() http.HandlerFunc {
 			return
 		}
 
-		tmpl, err := template.ParseFS(fs, "templates/guide.html")
+		render(w, r, "templates/guide.html", g)
+	}
+}
+
+func (s *Server) HandleCreateGuide() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			render(w, r, "templates/createGuide.html", nil)
+			return
+		}
+		//http.MethodPost
+		//name := r.PostFormValue("name")
+		//description := r.PostFormValue("description")
+		//latitude := r.PostFormValue("latitude")
+		//longitude := r.PostFormValue("longitude")
+		//if name == "" || latitude == "" || longitude == "" {
+		//	http.Error(w, "name, latitude, longitude cannot be empty", http.StatusBadRequest)
+		//	return
+		//}
+		//g, err := NewGuide(name, WithValidStringCoordinates(latitude, longitude), WithDescription(description))
+		//if err != nil {
+		//	http.Error(w, err.Error(), http.StatusInternalServerError)
+		//	return
+		//}
+		g := validateGuideForm(w, r)
+		if g == nil {
+			return
+		}
+		gid, err := s.store.Create(*g)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		err = tmpl.Execute(w, g)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		gURL := fmt.Sprintf("/guide/%d", gid)
+		http.Redirect(w, r, gURL, http.StatusSeeOther)
 	}
 }
 
@@ -107,6 +124,7 @@ func ServerRun(address string) {
 				}},
 		},
 	}
+	store.nextKey = 6
 	s, err := NewServer(address, &store)
 	if err != nil {
 		log.Fatal(err)
@@ -117,6 +135,20 @@ func (s *Server) routes() http.Handler {
 	router := http.NewServeMux()
 	router.HandleFunc("/", s.HandleIndex())
 	router.HandleFunc("/guide/", s.HandleGuide())
+	router.HandleFunc("/guide/create/", s.HandleCreateGuide())
 
 	return router
+}
+
+func render(w http.ResponseWriter, r *http.Request, templateFile string, data any) {
+	tmpl, err := template.ParseFS(fs, templateFile)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	err = tmpl.Execute(w, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }

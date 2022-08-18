@@ -46,14 +46,10 @@ func TestMemoryStore_GetReturnsExistingGuide(t *testing.T) {
 func TestMemoryStore_CreateNewGuide(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	coordinate, err := guide.NewCoordinate(30, 41)
-	if err != nil {
-		t.Fatal(err)
-	}
 	want := "Tuscany"
 	g := guide.Guide{
 		Name:       want,
-		Coordinate: coordinate,
+		Coordinate: guide.Coordinate{10, 10},
 	}
 
 	id, err := store.Create(g)

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+   <style>
+       .error {
+           color: red;
+       }
+   </style>
+</head>
+<body>
+<h1>Create New Guide</h1>
+<div id="errors">
+    {{range .Errors}}
+    <p class="error"> {{ . }}</p>
+    {{end}}
+</div>
+<form action="/guide/create/" method="post">
+    <label for="name">Guide name:</label><br>
+    <input type="text" id="name" name="name" value="{{.Name}}"><br>
+    <label for="description">Description:</label><br>
+    <textarea id="description" name="description" >{{.Description}}</textarea><br>
+    <label for="latitude">Latitude:</label><br>
+    <input type="text" id="latitude" name="latitude" value="{{.Latitude}}"><br>
+    <label for="longitude">Longitude:</label><br>
+    <input type="text" id="longitude" name="longitude" value="{{.Longitude}}"><br>
+    <input type="submit" value="Create">
+</form>
+<div>
+    <a href="/">cancel</a>
+</div>
+</body>
+</html>

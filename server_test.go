@@ -48,8 +48,6 @@ func TestGuideHandlerRendersMap(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
 	g := guide.Guide{Id: 1, Name: "San Cristobal", Coordinate: guide.Coordinate{Latitude: 16.7371, Longitude: -92.6375}}
-	//g.NewPointOfInterest("Cafeología", 16.737393, -92.635857)
-	//g.NewPointOfInterest("Centralita Coworking", 16.739030, -92.635001)
 	store.Guides = map[int]guide.Guide{
 		1: g,
 	}
@@ -131,6 +129,61 @@ func TestGuideHandlerRenders400NoId(t *testing.T) {
 	got := string(body)
 	if !strings.Contains(got, want) {
 		t.Errorf("want index to contain %s\nGot:\n%s", want, got)
+	}
+}
+
+func TestCreateGuideHandlerGetRendersForm(t *testing.T) {
+	t.Parallel()
+	store := guide.OpenMemoryStore()
+	server, err := guide.NewServer("localhost:8080", &store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/guide/create", nil)
+	handler := server.HandleCreateGuide()
+	handler(rec, req)
+
+	res := rec.Result()
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("expected status 200 OK, body %d", res.StatusCode)
+	}
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "Create New Guide"
+	got := string(body)
+	if !strings.Contains(got, want) {
+		t.Errorf("want index to contain %s\nGot:\n%s", want, got)
+	}
+}
+
+func TestCreateGuideHandlerPostCreatesGuide(t *testing.T) {
+	t.Parallel()
+	store := guide.OpenMemoryStore()
+	server, err := guide.NewServer("localhost:8080", &store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	form := strings.NewReader("name=Test&description=blah blah&latitude=10&longitude=10")
+	req := httptest.NewRequest(http.MethodPost, "/guide/create", form)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	handler := server.HandleCreateGuide()
+	handler(rec, req)
+
+	res := rec.Result()
+	if res.StatusCode != http.StatusSeeOther {
+		t.Errorf("expected status 303 SeeOther, got %d", res.StatusCode)
+	}
+	//TODO test it shows guide template?
+	//body, err := io.ReadAll(res.Body)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	if len(store.Guides) != 1 {
+		t.Error("want store to contain new guide")
 	}
 }
 

@@ -51,3 +51,25 @@ func TestWithValidCoordinatesErrorsOnInvalidCoordinates(t *testing.T) {
 		}
 	}
 }
+func TestWithValidStringCoordinatesErrorsOnInvalidCoordinates(t *testing.T) {
+	t.Parallel()
+	//Latitude valid range [-90,90]
+	//Longitude valid range [-180,180]
+	testCases := []struct {
+		name                string
+		latitude, longitude string
+	}{
+		{name: "empty Latitude", latitude: "", longitude: "100"},
+		{name: "empty Longitude", latitude: "11", longitude: ""},
+		{name: "invalid Latitude", latitude: "92", longitude: "100"},
+		{name: "invalid Latitude", latitude: "92", longitude: "100"},
+		{name: "invalid Longitude", latitude: "-41", longitude: "181"},
+		{name: "invalid Longitude", latitude: "1", longitude: "-180.1"},
+	}
+	for _, tc := range testCases {
+		_, err := guide.NewGuide("test", guide.WithValidStringCoordinates(tc.latitude, tc.longitude))
+		if err == nil {
+			t.Errorf("want error on %s, Latitude: %s  Longitude: %s", tc.name, tc.latitude, tc.longitude)
+		}
+	}
+}

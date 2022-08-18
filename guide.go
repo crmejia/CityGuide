@@ -3,13 +3,16 @@ package guide
 import (
 	_ "embed"
 	"errors"
+	"net/http"
+	"strconv"
 )
 
 type Guide struct {
-	Id         int
-	Name       string
-	Coordinate Coordinate
-	Pois       []pointOfInterest
+	Id          int
+	Name        string
+	Description string
+	Coordinate  Coordinate
+	Pois        []pointOfInterest
 }
 
 type pointOfInterest struct {
@@ -22,12 +25,13 @@ type Coordinate struct {
 	Latitude, Longitude float64
 }
 
+// TODO Make private
 func NewCoordinate(latitude, longitude float64) (Coordinate, error) {
 	if latitude < -90 || latitude > 90 {
-		return Coordinate{}, errors.New("Latitude has to be in the -90°, 90° range")
+		return Coordinate{}, errors.New("latitude has to be in the -90°, 90° range")
 	}
 	if longitude < -180 || longitude > 180 {
-		return Coordinate{}, errors.New("Longitude has to be in the -90°, 90° range")
+		return Coordinate{}, errors.New("longitude has to be in the -90°, 90° range")
 	}
 	return Coordinate{Latitude: latitude, Longitude: longitude}, nil
 }
@@ -46,6 +50,39 @@ func WithValidCoordinates(latitude, longitude float64) guideOption {
 	}
 }
 
+func WithValidStringCoordinates(latitude, longitude string) guideOption {
+	return func(g *Guide) error {
+		if latitude == "" {
+			return errors.New("latitude cannot be empty")
+		}
+		if longitude == "" {
+			return errors.New("longitude cannot be empty")
+		}
+
+		lat, err := strconv.ParseFloat(latitude, 64)
+		if err != nil {
+			return errors.New("latitude has to be a number")
+		}
+		lon, err := strconv.ParseFloat(longitude, 64)
+		if err != nil {
+			return errors.New("longitude hast to be a number")
+		}
+		coord, err := NewCoordinate(lat, lon)
+		if err != nil {
+			return err
+		}
+		g.Coordinate = coord
+		return nil
+
+	}
+}
+func WithDescription(description string) guideOption {
+	return func(g *Guide) error {
+		g.Description = description
+		return nil
+	}
+}
+
 //WithLocation
 //WithLocationLookUp
 
@@ -53,7 +90,7 @@ func WithValidCoordinates(latitude, longitude float64) guideOption {
 
 func NewGuide(name string, opts ...guideOption) (Guide, error) {
 	if name == "" {
-		return Guide{}, errors.New("Guide Name cannot be empty")
+		return Guide{}, errors.New("guide name cannot be empty")
 	}
 	g := Guide{
 		Name: name,
@@ -80,4 +117,24 @@ func (g *Guide) NewPointOfInterest(name string, latitude float64, longitude floa
 	}
 	g.Pois = append(g.Pois, poi)
 	return nil
+}
+
+func validateGuideForm(w http.ResponseWriter, r *http.Request) *Guide {
+	form := struct {
+		Name, Description, Latitude, Longitude string
+		Errors                                 []string
+	}{
+		Name:        r.PostFormValue("name"),
+		Description: r.PostFormValue("description"),
+		Latitude:    r.PostFormValue("latitude"),
+		Longitude:   r.PostFormValue("longitude"),
+	}
+
+	g, err := NewGuide(form.Name, WithValidStringCoordinates(form.Latitude, form.Longitude), WithDescription(form.Description))
+	if err != nil {
+		form.Errors = append(form.Errors, err.Error())
+		render(w, r, "templates/createGuide.html", form)
+		return nil
+	}
+	return &g
 }
