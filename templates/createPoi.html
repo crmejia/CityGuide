@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add POI</title>
+   <style>
+       .error {
+           color: red;
+       }
+   </style>
+</head>
+<body>
+    <h1>Add Point of Interest to {{.GuideName}}</h1>
+    <div id="errors">
+        {{range .Errors}}
+        <p class="error"> {{ . }}</p>
+        {{end}}
+    </div>
+    <form action="/guide/poi/create/{{.GuideID}}" method="post">
+        <input type="hidden" name="gid" value="{{.GuideID}}">
+        <label for="name">Name:</label><br>
+        <input type="text" id="name" name="name" value="{{.Name}}"><br>
+        <label for="description">Description:</label><br>
+        <textarea id="description" name="description" >{{.Description}}</textarea><br>
+        <label for="latitude">Latitude:</label><br>
+        <input type="text" id="latitude" name="latitude" value="{{.Latitude}}"><br>
+        <label for="longitude">Longitude:</label><br>
+        <input type="text" id="longitude" name="longitude" value="{{.Longitude}}"><br>
+        <input type="submit" value="Create">
+    </form>
+    <br>
+    <div>
+        <a href="/guide/{{.GuideID}}">cancel</a>
+    </div>
+</body>
+</html>

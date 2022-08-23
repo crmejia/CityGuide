@@ -22,10 +22,7 @@ func TestMemoryStore_GetReturnsNilAndErrorOnNoGuide(t *testing.T) {
 func TestMemoryStore_GetReturnsExistingGuide(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	coordinate, err := guide.NewCoordinate(30, 41)
-	if err != nil {
-		t.Fatal(err)
-	}
+	coordinate := guide.Coordinate{30, 40}
 	want := "Tuscany"
 	store.Guides[1] = guide.Guide{Name: want, Coordinate: coordinate}
 
@@ -65,17 +62,14 @@ func TestMemoryStore_CreateNewGuide(t *testing.T) {
 func TestMemoryStore_UpdateGuide(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	coordinate, err := guide.NewCoordinate(30, 41)
-	if err != nil {
-		t.Fatal(err)
-	}
+	coordinate := guide.Coordinate{30, 40}
 	oldGuide := guide.Guide{Name: "Sicily", Coordinate: coordinate}
 	id := 44
 	store.Guides[id] = oldGuide
 
 	want := "Tuscany"
 	newGuide := guide.Guide{Id: id, Name: want, Coordinate: coordinate}
-	err = store.Update(newGuide)
+	err := store.Update(newGuide)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,28 +82,23 @@ func TestMemoryStore_UpdateGuide(t *testing.T) {
 func TestMemoryStore_UpdateFailsOnNonExistingGuide(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	coordinate, err := guide.NewCoordinate(30, 41)
-	if err != nil {
-		t.Fatal(err)
-	}
+	coordinate := guide.Coordinate{30, 40}
 	want := "Tuscany"
 	g := guide.Guide{Id: 12, Name: want, Coordinate: coordinate}
-	err = store.Update(g)
+	err := store.Update(g)
 
 	if err == nil {
 		t.Error("want update to fail if guide does not exist")
 	}
 }
+
 func TestMemoryStore_UpdateFailsOnNonSetID(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	coordinate, err := guide.NewCoordinate(30, 41)
-	if err != nil {
-		t.Fatal(err)
-	}
+	coordinate := guide.Coordinate{30, 40}
 	want := "Tuscany"
 	g := guide.Guide{Id: 0, Name: want, Coordinate: coordinate}
-	err = store.Update(g)
+	err := store.Update(g)
 
 	if err == nil {
 		t.Error("want update to fail if guide does not exist")

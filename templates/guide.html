@@ -20,30 +20,48 @@
             max-width: 100%;
             max-height: 100%;
         }
+        table, th, td {
+            table-layout: auto;
+            width: 100%;
+            border: 0.5px solid black;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
-<h1> {{.Name}}</h1>
-<div id="map" style="width: 600px; height: 400px;"></div>
-<script>
-    let map = L.map('map').setView([{{.Coordinate.Latitude}}, {{.Coordinate.Longitude}}], 15);
+    <h1> {{.Name}}</h1>
+    <p> {{.Description}}</p>
+    <div id="map" style="width: 600px; height: 400px;"></div><br>
+    <script>
+        let map = L.map('map').setView([{{.Coordinate.Latitude}}, {{.Coordinate.Longitude}}], 15);
 
-    let tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }).addTo(map);
+        let tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
 
-    let pois = {{.Pois}}
-    pois.forEach( function (poi) {
-        let marker = L.marker([poi.Coordinate.Latitude,poi.Coordinate.Longitude]).addTo(map);
-        marker.bindPopup(poi.Name + " TBD description")
-    })
-
-
-</script>
-<div>
-    <a href="/">back</a>
-</div>
+        let pois = {{.Pois}}
+        pois.forEach( function (poi) {
+            let marker = L.marker([poi.Coordinate.Latitude,poi.Coordinate.Longitude]).addTo(map);
+            marker.bindPopup(poi.Name + " TBD description")
+        })
+    </script>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+        </tr>
+        {{range .Pois}}
+        <tr>
+            <td> {{.Name}}</td>
+            <td>{{.Description}}</td>
+        </tr>
+        {{end}}
+    </table>
+    <div>
+        <a href="/guide/poi/create/{{.Id}}"> Add Poi</a>
+        <a href="/">back</a>
+    </div>
 </body>
 </html>
 

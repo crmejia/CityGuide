@@ -75,20 +75,7 @@ func (s *Server) HandleCreateGuide() http.HandlerFunc {
 			return
 		}
 		//http.MethodPost
-		//name := r.PostFormValue("name")
-		//description := r.PostFormValue("description")
-		//latitude := r.PostFormValue("latitude")
-		//longitude := r.PostFormValue("longitude")
-		//if name == "" || latitude == "" || longitude == "" {
-		//	http.Error(w, "name, latitude, longitude cannot be empty", http.StatusBadRequest)
-		//	return
-		//}
-		//g, err := NewGuide(name, WithValidStringCoordinates(latitude, longitude), WithDescription(description))
-		//if err != nil {
-		//	http.Error(w, err.Error(), http.StatusInternalServerError)
-		//	return
-		//}
-		g := validateGuideForm(w, r)
+		g := newGuideForm(w, r)
 		if g == nil {
 			return
 		}
@@ -102,6 +89,51 @@ func (s *Server) HandleCreateGuide() http.HandlerFunc {
 	}
 }
 
+func (s *Server) HandleCreatePoi() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		p := strings.Split(r.URL.Path, "/")
+		if len(p) < 5 {
+			http.Error(w, "no guideid provided", http.StatusBadRequest)
+			return
+		}
+		guideID := p[4]
+		if guideID == "" {
+			http.Error(w, "please provide guide id", http.StatusBadRequest)
+			return
+		}
+		gid, err := strconv.Atoi(guideID)
+		if err != nil {
+			http.Error(w, "please provide valid guide id", http.StatusBadRequest)
+		}
+		g, err := s.store.Get(gid)
+		if err != nil {
+			http.Error(w, "guide not found", http.StatusNotFound)
+			return
+		}
+		poiForm := poiForm{
+			GuideID:     gid,
+			GuideName:   g.Name,
+			Name:        r.PostFormValue("name"),
+			Description: r.PostFormValue("description"),
+			Latitude:    r.PostFormValue("latitude"),
+			Longitude:   r.PostFormValue("longitude"),
+		}
+		if r.Method == http.MethodGet {
+			render(w, r, "templates/createPoi.html", poiForm)
+			return
+		}
+		//http.MethodPost
+		poi, err := NewPointOfInterest(poiForm.Name, PoiWithValidStringCoordinates(poiForm.Latitude, poiForm.Longitude))
+		if err != nil {
+			poiForm.Errors = append(poiForm.Errors, err.Error())
+			render(w, r, "templates/createPoi.html", poiForm)
+			return
+		}
+		*g.Pois = append(*g.Pois, *poi)
+		gURL := fmt.Sprintf("/guide/%d", gid)
+		http.Redirect(w, r, gURL, http.StatusSeeOther)
+	}
+}
 func (s *Server) Run() {
 	log.Println("starting http server")
 	err := s.ListenAndServe()
@@ -118,9 +150,10 @@ func ServerRun(address string) {
 			3: Guide{Id: 3, Name: "Guia de restaurantes Roma, CDMX", Coordinate: Coordinate{12, 12}},
 			4: Guide{Id: 4, Name: "Guia de Cuzco", Coordinate: Coordinate{13, 13}},
 			5: Guide{Id: 5, Name: "San Cristobal de las Casas", Coordinate: Coordinate{Latitude: 16.7371, Longitude: -92.6375},
-				Pois: []pointOfInterest{
-					{Name: "Cafeología", Coordinate: Coordinate{16.737393, -92.635857}},
-					{Name: "Centralita Coworking", Coordinate: Coordinate{16.739030, -92.635001}},
+				Description: "Beatiful town in the mountains of the state of Chiapas.",
+				Pois: &[]pointOfInterest{
+					{Name: "Cafeología", Coordinate: Coordinate{16.737393, -92.635857}, Description: "Best Coffee in town. Maybe even the best coffee in the country."},
+					{Name: "Centralita Coworking", Coordinate: Coordinate{16.739030, -92.635001}, Description: "Nice Coworking with a cool vibe."},
 				}},
 		},
 	}
@@ -136,6 +169,7 @@ func (s *Server) routes() http.Handler {
 	router.HandleFunc("/", s.HandleIndex())
 	router.HandleFunc("/guide/", s.HandleGuide())
 	router.HandleFunc("/guide/create/", s.HandleCreateGuide())
+	router.HandleFunc("/guide/poi/create/", s.HandleCreatePoi())
 
 	return router
 }

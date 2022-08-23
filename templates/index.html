@@ -11,18 +11,30 @@
             height: 100%;
             margin: 0;
         }
+        table, th, td {
+            width: 90%;
+            border: 0.5px solid black;
+            table-layout: auto;
+            white-space: nowrap;
+        }
+
     </style>
 </head>
 <body>
     <div id="title"><h1>City Guide</h1></div>
-
-    <div id="guideList">
-        <ul>
-            {{range .}}
-            <li ><a href="/guide/{{.Id}}">{{.Name}}</li>
-            {{end}}
+    <table id="guideList">
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+        </tr>
+        {{range .}}
+        <tr>
+            <td><a href="/guide/{{.Id}}">{{.Name}}</td>
+            <td>{{.Description}}</td>
+        </tr>
+        {{end}}
         </ul>
-    </div>
+    </table>
     <div>
         <a href="/guide/create">Create New Guide</a>
     </div>
