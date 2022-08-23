@@ -125,6 +125,7 @@ func newGuideForm(w http.ResponseWriter, r *http.Request) *Guide {
 	g, err := NewGuide(form.Name, GuideWithValidStringCoordinates(form.Latitude, form.Longitude), GuideWithDescription(form.Description))
 	if err != nil {
 		form.Errors = append(form.Errors, err.Error())
+		w.WriteHeader(http.StatusBadRequest)
 		render(w, r, "templates/createGuide.html", form)
 		return nil
 	}
@@ -136,18 +137,6 @@ type poiForm struct {
 	GuideName                              string
 	Name, Description, Latitude, Longitude string
 	Errors                                 []string
-}
-
-func newPoiForm(w http.ResponseWriter, r *http.Request, poiForm poiForm) *pointOfInterest {
-	//gidString:= r.PostFormValue("gid")
-	//gid := strconv.Atoi(gidString)
-
-	poi, err := NewPointOfInterest(poiForm.Name, PoiWithValidStringCoordinates(poiForm.Latitude, poiForm.Longitude))
-	if err != nil {
-		poiForm.Errors = append(poiForm.Errors, err.Error())
-		render(w, r, "templates/createPoi.html", poiForm)
-	}
-	return poi
 }
 
 func parseCoordinates(latitude, longitude string) (Coordinate, error) {
@@ -164,7 +153,7 @@ func parseCoordinates(latitude, longitude string) (Coordinate, error) {
 	}
 	lon, err := strconv.ParseFloat(longitude, 64)
 	if err != nil {
-		return Coordinate{}, errors.New("longitude hast to be a number")
+		return Coordinate{}, errors.New("longitude has to be a number")
 	}
 	coord, err := newCoordinate(lat, lon)
 	if err != nil {

@@ -97,10 +97,6 @@ func (s *Server) HandleCreatePoi() http.HandlerFunc {
 			return
 		}
 		guideID := p[4]
-		if guideID == "" {
-			http.Error(w, "please provide guide id", http.StatusBadRequest)
-			return
-		}
 		gid, err := strconv.Atoi(guideID)
 		if err != nil {
 			http.Error(w, "please provide valid guide id", http.StatusBadRequest)
@@ -126,6 +122,7 @@ func (s *Server) HandleCreatePoi() http.HandlerFunc {
 		poi, err := NewPointOfInterest(poiForm.Name, PoiWithValidStringCoordinates(poiForm.Latitude, poiForm.Longitude))
 		if err != nil {
 			poiForm.Errors = append(poiForm.Errors, err.Error())
+			w.WriteHeader(http.StatusBadRequest)
 			render(w, r, "templates/createPoi.html", poiForm)
 			return
 		}
