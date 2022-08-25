@@ -12,11 +12,11 @@ import (
 )
 
 type Server struct {
-	store *memoryStore
+	store store
 	*http.Server
 }
 
-func NewServer(address string, store *memoryStore) (Server, error) {
+func NewServer(address string, store store) (Server, error) {
 	if address == "" {
 		return Server{}, errors.New("server address cannot be empty")
 	}

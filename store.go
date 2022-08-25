@@ -2,6 +2,12 @@ package guide
 
 import "errors"
 
+type store interface {
+	Get(int) (*Guide, error)
+	Create(guide Guide) (int, error)
+	Update(guide Guide) error
+	GetAllGuides() []Guide
+}
 type memoryStore struct {
 	Guides  map[int]Guide
 	nextKey int
