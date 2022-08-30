@@ -28,7 +28,7 @@ func TestNewServerErrors(t *testing.T) {
 func TestIndexHandler(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	store.Guides = map[int]guide.Guide{
+	store.Guides = map[int64]guide.Guide{
 		1:    guide.Guide{Id: 1, Name: "Nairobi", Coordinate: guide.Coordinate{10, 10}},
 		5:    guide.Guide{Id: 5, Name: "Fukuoka", Coordinate: guide.Coordinate{11, 11}},
 		2345: guide.Guide{Id: 2445, Name: "Guia de restaurantes Roma, CDMX", Coordinate: guide.Coordinate{12, 12}},
@@ -69,7 +69,7 @@ func TestGuideHandlerRendersMap(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
 	g := guide.Guide{Id: 1, Name: "San Cristobal", Coordinate: guide.Coordinate{Latitude: 16.7371, Longitude: -92.6375}}
-	store.Guides = map[int]guide.Guide{
+	store.Guides = map[int64]guide.Guide{
 		1: g,
 	}
 
@@ -256,7 +256,7 @@ func TestCreatePoiHandlerGetRendersForm(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
 	g := guide.Guide{Id: 1, Name: "San Cristobal", Coordinate: guide.Coordinate{Latitude: 16.7371, Longitude: -92.6375}}
-	store.Guides = map[int]guide.Guide{
+	store.Guides = map[int64]guide.Guide{
 		1: g,
 	}
 	server, err := guide.NewServer("localhost:8080", &store)
@@ -337,7 +337,7 @@ func TestCreatePoiHandlerFormErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 	store := guide.OpenMemoryStore()
-	store.Guides = map[int]guide.Guide{
+	store.Guides = map[int64]guide.Guide{
 		1: g,
 	}
 	server, err := guide.NewServer("localhost:8080", &store)
@@ -373,7 +373,7 @@ func TestCreatePoiHandlerPost(t *testing.T) {
 		t.Fatal(err)
 	}
 	store := guide.OpenMemoryStore()
-	store.Guides = map[int]guide.Guide{
+	store.Guides = map[int64]guide.Guide{
 		1: g,
 	}
 	freeport, err := freeport.GetFreePort()

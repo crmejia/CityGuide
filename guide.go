@@ -8,7 +8,7 @@ import (
 )
 
 type Guide struct {
-	Id          int
+	Id          int64
 	Name        string
 	Description string
 	Coordinate  Coordinate
@@ -133,7 +133,7 @@ func newGuideForm(w http.ResponseWriter, r *http.Request) *Guide {
 }
 
 type poiForm struct {
-	GuideID                                int
+	GuideID                                int64
 	GuideName                              string
 	Name, Description, Latitude, Longitude string
 	Errors                                 []string

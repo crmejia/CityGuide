@@ -53,7 +53,7 @@ func (c *Server) HandleGuide() http.HandlerFunc {
 		}
 
 		guideID := p[2]
-		id, err := strconv.Atoi(guideID)
+		id, err := strconv.ParseInt(guideID, 10, 64)
 		if err != nil {
 			http.Error(w, "not able to parse guide ID", http.StatusBadRequest)
 			return
@@ -97,7 +97,7 @@ func (s *Server) HandleCreatePoi() http.HandlerFunc {
 			return
 		}
 		guideID := p[4]
-		gid, err := strconv.Atoi(guideID)
+		gid, err := strconv.ParseInt(guideID, 10, 64)
 		if err != nil {
 			http.Error(w, "please provide valid guide id", http.StatusBadRequest)
 		}
@@ -126,6 +126,7 @@ func (s *Server) HandleCreatePoi() http.HandlerFunc {
 			render(w, r, "templates/createPoi.html", poiForm)
 			return
 		}
+		//TODO this should be a store operation func (s *store)InsertPoi(guideID, Poi{})(poiID, error)
 		*g.Pois = append(*g.Pois, *poi)
 		gURL := fmt.Sprintf("/guide/%d", gid)
 		http.Redirect(w, r, gURL, http.StatusSeeOther)
@@ -141,7 +142,7 @@ func (s *Server) Run() {
 
 func ServerRun(address string) {
 	store := memoryStore{
-		Guides: map[int]Guide{
+		Guides: map[int64]Guide{
 			1: Guide{Id: 1, Name: "Nairobi", Coordinate: Coordinate{10, 10}},
 			2: Guide{Id: 2, Name: "Fukuoka", Coordinate: Coordinate{11, 11}},
 			3: Guide{Id: 3, Name: "Guia de restaurantes Roma, CDMX", Coordinate: Coordinate{12, 12}},
