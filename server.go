@@ -58,7 +58,7 @@ func (c *Server) HandleGuide() http.HandlerFunc {
 			http.Error(w, "not able to parse guide ID", http.StatusBadRequest)
 			return
 		}
-		g, err := c.store.Get(id)
+		g, err := c.store.GetGuide(id)
 		if err != nil {
 			http.Error(w, "Guide Not Found", http.StatusNotFound)
 			return
@@ -79,7 +79,7 @@ func (s *Server) HandleCreateGuide() http.HandlerFunc {
 		if g == nil {
 			return
 		}
-		gid, err := s.store.Create(*g)
+		gid, err := s.store.CreateGuide(*g)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -101,7 +101,7 @@ func (s *Server) HandleCreatePoi() http.HandlerFunc {
 		if err != nil {
 			http.Error(w, "please provide valid guide id", http.StatusBadRequest)
 		}
-		g, err := s.store.Get(gid)
+		g, err := s.store.GetGuide(gid)
 		if err != nil {
 			http.Error(w, "guide not found", http.StatusNotFound)
 			return
@@ -119,15 +119,15 @@ func (s *Server) HandleCreatePoi() http.HandlerFunc {
 			return
 		}
 		//http.MethodPost
-		poi, err := NewPointOfInterest(poiForm.Name, PoiWithValidStringCoordinates(poiForm.Latitude, poiForm.Longitude))
+		_, err = NewPointOfInterest(poiForm.Name, gid, PoiWithValidStringCoordinates(poiForm.Latitude, poiForm.Longitude))
 		if err != nil {
 			poiForm.Errors = append(poiForm.Errors, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
 			render(w, r, "templates/createPoi.html", poiForm)
 			return
 		}
-		//TODO this should be a store operation func (s *store)InsertPoi(guideID, Poi{})(poiID, error)
-		*g.Pois = append(*g.Pois, *poi)
+		//TODO this should be a store operation func (s *store)CreatePoi(guideID, Poi{})(poiID, error)
+		//g.Pois = append(*g.Pois, poi)
 		gURL := fmt.Sprintf("/guide/%d", gid)
 		http.Redirect(w, r, gURL, http.StatusSeeOther)
 	}
@@ -155,7 +155,7 @@ func ServerRun(address string) {
 				}},
 		},
 	}
-	store.nextKey = 6
+	store.nextGuideKey = 6
 	s, err := NewServer(address, &store)
 	if err != nil {
 		log.Fatal(err)

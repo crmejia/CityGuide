@@ -69,6 +69,8 @@ func NewGuide(name string, opts ...guideOption) (Guide, error) {
 }
 
 type pointOfInterest struct {
+	Id          int64
+	GuideID     int64
 	Coordinate  Coordinate
 	Name        string
 	Description string
@@ -94,21 +96,25 @@ func PoiWithDescription(description string) poiOption {
 	}
 }
 
-func NewPointOfInterest(name string, opts ...poiOption) (*pointOfInterest, error) {
+func NewPointOfInterest(name string, guideID int64, opts ...poiOption) (pointOfInterest, error) {
 	if name == "" {
-		return nil, errors.New("guide name cannot be empty")
+		return pointOfInterest{}, errors.New("poi name cannot be empty")
+	}
+	if guideID <= 0 {
+		return pointOfInterest{}, errors.New("guide ID cannot be empty")
 	}
 	poi := pointOfInterest{
-		Name: name,
+		Name:    name,
+		GuideID: guideID,
 	}
 
 	for _, opt := range opts {
 		err := opt(&poi)
 		if err != nil {
-			return nil, err
+			return pointOfInterest{}, err
 		}
 	}
-	return &poi, nil
+	return poi, nil
 }
 
 func newGuideForm(w http.ResponseWriter, r *http.Request) *Guide {

@@ -178,7 +178,7 @@ func TestCreateGuideHandlerGetRendersForm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "Create New Guide"
+	want := "CreateGuide New Guide"
 	got := string(body)
 	if !strings.Contains(got, want) {
 		t.Errorf("want index to contain %s\nGot:\n%s", want, got)
@@ -414,12 +414,12 @@ func TestCreatePoiHandlerPost(t *testing.T) {
 //	address := fmt.Sprintf(":%d", freePort)
 //	go guide.ServerRun(address)
 //
-//	res, err := http.Get("http://localhost" + address)
+//	res, err := http.GetGuide("http://localhost" + address)
 //	for err != nil {
 //		switch {
 //		case strings.Contains(err.Error(), "connection refused"):
 //			time.Sleep(5 * time.Millisecond)
-//			res, err = http.Get(address)
+//			res, err = http.GetGuide(address)
 //		default:
 //			t.Fatal(err)
 //		}
