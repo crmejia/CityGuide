@@ -15,21 +15,25 @@ func TestMemoryStore_GetReturnsErrorOnNoGuide(t *testing.T) {
 	}
 }
 
-func TestMemoryStore_GetReturnsExistingGuide(t *testing.T) {
+func TestMemoryStore_GuideRoundtripCreateUpdateGet(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	coordinate := guide.Coordinate{30, 40}
+	newGuide, err := store.CreateGuide("test", guide.GuideWithValidStringCoordinates("10", "10"))
+	if err != nil {
+		return
+	}
 	want := "Tuscany"
-	store.Guides[1] = guide.Guide{Name: want, Coordinate: coordinate}
+	newGuide.Name = want
+	err = store.UpdateGuide(newGuide)
 
-	g, err := store.GetGuide(1)
+	g, err := store.GetGuide(newGuide.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	got := g.Name
 	if want != got {
-		t.Errorf("want Guide name to be %s, got %s", want, got)
+		t.Errorf("want guide name to be %s, got %s", want, got)
 	}
 }
 
@@ -37,49 +41,27 @@ func TestMemoryStore_CreateNewGuide(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
 	want := "Tuscany"
-	g := guide.Guide{
-		Name:       want,
-		Coordinate: guide.Coordinate{10, 10},
-	}
-
-	id, err := store.CreateGuide(g)
+	g, err := store.CreateGuide(want, guide.GuideWithValidStringCoordinates("10", "10"))
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if _, ok := store.Guides[id]; !ok {
+	if g.Id == 0 {
+		t.Errorf("0 is not a valid ID")
+	}
+	if _, ok := store.Guides[g.Id]; !ok {
 		t.Error("want guide to be inserted into store")
-	}
-}
-
-func TestMemoryStore_UpdateGuide(t *testing.T) {
-	t.Parallel()
-	store := guide.OpenMemoryStore()
-	coordinate := guide.Coordinate{30, 40}
-	oldGuide := guide.Guide{Name: "Sicily", Coordinate: coordinate}
-	id := int64(44)
-	store.Guides[id] = oldGuide
-
-	want := "Tuscany"
-	newGuide := guide.Guide{Id: id, Name: want, Coordinate: coordinate}
-	err := store.UpdateGuide(newGuide)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if store.Guides[id].Name != want {
-		t.Error("want update to update guide")
 	}
 }
 
 func TestMemoryStore_UpdateFailsOnNonExistingGuide(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	coordinate := guide.Coordinate{30, 40}
-	want := "Tuscany"
-	g := guide.Guide{Id: 12, Name: want, Coordinate: coordinate}
-	err := store.UpdateGuide(g)
-
+	g, err := store.CreateGuide("test", guide.GuideWithValidStringCoordinates("10", "10"))
+	if err != nil {
+		return
+	}
+	g.Id = 400
+	err = store.UpdateGuide(g)
 	if err == nil {
 		t.Error("want update to fail if guide does not exist")
 	}
@@ -88,10 +70,12 @@ func TestMemoryStore_UpdateFailsOnNonExistingGuide(t *testing.T) {
 func TestMemoryStore_UpdateFailsOnNonSetID(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	coordinate := guide.Coordinate{30, 40}
-	want := "Tuscany"
-	g := guide.Guide{Id: 0, Name: want, Coordinate: coordinate}
-	err := store.UpdateGuide(g)
+	g, err := store.CreateGuide("test", guide.GuideWithValidStringCoordinates("10", "10"))
+	if err != nil {
+		return
+	}
+	g.Id = 0
+	err = store.UpdateGuide(g)
 
 	if err == nil {
 		t.Error("want update to fail if guide does not exist")
@@ -101,10 +85,12 @@ func TestMemoryStore_UpdateFailsOnNonSetID(t *testing.T) {
 func TestMemoryStore_AllGuidesReturnsSliceOfGuides(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	store.Guides = map[int64]guide.Guide{
-		34:    guide.Guide{Name: "Tuscany"},
-		88888: guide.Guide{Name: "Sicily"},
-		22:    guide.Guide{Name: "Verona"},
+	want := 3
+	for i := 0; i < want; i++ {
+		_, err := store.CreateGuide("test", guide.GuideWithValidStringCoordinates("10", "1"))
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	allGuides := store.GetAllGuides()
@@ -116,34 +102,23 @@ func TestMemoryStore_AllGuidesReturnsSliceOfGuides(t *testing.T) {
 func TestMemoryStore_PoiRoundtripCreateUpdateGetPoi(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-
-	g := guide.Guide{
-		Name:       "newGuide",
-		Coordinate: guide.Coordinate{10, 10},
-	}
-
-	gid, err := store.CreateGuide(g)
+	g, err := store.CreateGuide("newGuide", guide.GuideWithValidStringCoordinates("10", "10"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	poi, err := guide.NewPointOfInterest("test", gid, guide.PoiWithValidStringCoordinates("10", "10"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	pid, err := store.CreatePoi(poi)
+	poi, err := store.CreatePoi("test", g.Id, guide.PoiWithValidStringCoordinates("10", "10"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := "testPOI"
-	poi.Id = pid
 	poi.Name = want
 	err = store.UpdatePoi(poi)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := store.GetPoi(pid)
+	got, err := store.GetPoi(poi.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,24 +132,18 @@ func TestMemoryStore_GetAllPois(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
 
-	g := guide.Guide{
-		Name:       "newGuide",
-		Coordinate: guide.Coordinate{10, 10},
-	}
-
-	gid, err := store.CreateGuide(g)
+	g, err := store.CreateGuide("newGuide", guide.GuideWithValidStringCoordinates("10", "10"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	pois := []string{"A", "B", "C"}
 	for _, name := range pois {
-		poi, err := guide.NewPointOfInterest(name, gid, guide.PoiWithValidStringCoordinates("10", "10"))
+		_, err := store.CreatePoi(name, g.Id, guide.PoiWithValidStringCoordinates("10", "10"))
 		if err != nil {
 			t.Fatal(err)
 		}
-		store.CreatePoi(poi)
 	}
-	got := store.GetAllPois(gid)
+	got := store.GetAllPois(g.Id)
 	if len(got) != len(pois) {
 		t.Errorf("want GetAllPois to return %d points of interest, got %d", len(pois), len(got))
 	}
@@ -191,29 +160,24 @@ func TestOpenSQLiteStoreErrorsOnEmptyDBSource(t *testing.T) {
 func TestSQLiteStore_GuideRoundtripCreateUpdateGet(t *testing.T) {
 	t.Parallel()
 	tempDB := t.TempDir() + "guideRoundtrip.store"
-	db, err := guide.OpenSQLiteStore(tempDB)
+	sqLiteStore, err := guide.OpenSQLiteStore(tempDB)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	g := guide.Guide{
-		Name:       "newGuide",
-		Coordinate: guide.Coordinate{10, 10},
-	}
-
-	gid, err := db.CreateGuide(g)
+	g, err := sqLiteStore.CreateGuide("newGuide", guide.GuideWithValidStringCoordinates("10", "10"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := "testGuide"
 	g.Name = want
-	g.Id = gid
-	err = db.UpdateGuide(g)
+	g.Id = g.Id
+	err = sqLiteStore.UpdateGuide(g)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := db.GetGuide(gid)
+	got, err := sqLiteStore.GetGuide(g.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -230,61 +194,46 @@ func TestSQLiteStore_GetAllGuides(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	guides := []guide.Guide{
-		{Name: "Osaka", Coordinate: guide.Coordinate{10, 10}},
-		{Name: "Istanbul", Coordinate: guide.Coordinate{10, 10}},
-		{Name: "Lagos", Coordinate: guide.Coordinate{10, 10}},
-	}
 
-	for _, g := range guides {
-		_, err := sqliteStore.CreateGuide(g)
+	want := 3
+	for i := 0; i < want; i++ {
+		_, err := sqliteStore.CreateGuide("newGuide", guide.GuideWithValidStringCoordinates("10", "10"))
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	got := sqliteStore.GetAllGuides()
-	if len(got) != len(guides) {
-		t.Errorf("want GetAllGuides to return %d guides, got %d", len(guides), len(got))
+	if len(got) != want {
+		t.Errorf("want GetAllGuides to return %d guides, got %d", want, len(got))
 	}
 }
 
 func TestSqliteStore_PoiRoundtripCreateUpdateGetPoi(t *testing.T) {
 	t.Parallel()
-
 	tempDB := t.TempDir() + "poiRoundtrip.store"
-	db, err := guide.OpenSQLiteStore(tempDB)
+	sqliteStore, err := guide.OpenSQLiteStore(tempDB)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	g := guide.Guide{
-		Name:       "newGuide",
-		Coordinate: guide.Coordinate{10, 10},
-	}
-
-	gid, err := db.CreateGuide(g)
+	g, err := sqliteStore.CreateGuide("newGuide", guide.GuideWithValidStringCoordinates("10", "10"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	poi, err := guide.NewPointOfInterest("test", gid, guide.PoiWithValidStringCoordinates("10", "10"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	pid, err := db.CreatePoi(poi)
+	poi, err := sqliteStore.CreatePoi("test", g.Id, guide.PoiWithValidStringCoordinates("10", "10"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := "testPOI"
-	poi.Id = pid
 	poi.Name = want
-	err = db.UpdatePoi(poi)
+	err = sqliteStore.UpdatePoi(poi)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := db.GetPoi(pid)
+	got, err := sqliteStore.GetPoi(poi.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -302,24 +251,18 @@ func TestSQLiteStore_GetAllPois(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	g := guide.Guide{
-		Name:       "newGuide",
-		Coordinate: guide.Coordinate{10, 10},
-	}
-
-	gid, err := sqliteStore.CreateGuide(g)
+	g, err := sqliteStore.CreateGuide("newGuide", guide.GuideWithValidStringCoordinates("10", "10"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	pois := []string{"A", "B", "C"}
 	for _, name := range pois {
-		poi, err := guide.NewPointOfInterest(name, gid, guide.PoiWithValidStringCoordinates("10", "10"))
+		_, err := sqliteStore.CreatePoi(name, g.Id, guide.PoiWithValidStringCoordinates("10", "10"))
 		if err != nil {
 			t.Fatal(err)
 		}
-		sqliteStore.CreatePoi(poi)
 	}
-	got := sqliteStore.GetAllPois(gid)
+	got := sqliteStore.GetAllPois(g.Id)
 	if len(got) != len(pois) {
 		t.Errorf("want GetAllPois to return %d points of interest, got %d", len(pois), len(got))
 	}

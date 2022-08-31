@@ -7,74 +7,88 @@ import (
 )
 
 type store interface {
-	GetGuide(int64) (Guide, error) //TODO change return to (Guide,error) should allow the user to change the value directly, should use method
-	CreateGuide(guide Guide) (int64, error)
-	UpdateGuide(guide Guide) error
-	GetAllGuides() []Guide
+	GetGuide(int64) (guide, error)
+	CreateGuide(string, ...guideOption) (*guide, error)
+	UpdateGuide(*guide) error
+
+	GetPoi(int64) (pointOfInterest, error)
+	CreatePoi(string, int64, ...poiOption) (*pointOfInterest, error)
+	UpdatePoi(*pointOfInterest) error
+
+	GetAllGuides() []guide
+	GetAllPois(int64) []pointOfInterest
 }
 type memoryStore struct {
-	Guides       map[int64]Guide
+	Guides       map[int64]guide
 	nextGuideKey int64
 	nextPoiKey   int64
 }
 
 func OpenMemoryStore() memoryStore {
 	ms := memoryStore{
-		Guides:       map[int64]Guide{},
+		Guides:       map[int64]guide{},
 		nextGuideKey: 1,
 		nextPoiKey:   1,
 	}
 	return ms
 }
 
-func (s *memoryStore) GetGuide(id int64) (Guide, error) {
-	guide, ok := s.Guides[id]
+func (s *memoryStore) GetGuide(id int64) (guide, error) {
+	g, ok := s.Guides[id]
 	if ok {
-		return guide, nil
+		return g, nil
 	}
-	return Guide{}, errors.New("guide not found")
+	return guide{}, errors.New("g not found")
 }
 
-func (s *memoryStore) CreateGuide(g Guide) (int64, error) {
+func (s *memoryStore) CreateGuide(name string, opts ...guideOption) (*guide, error) {
+	g, err := newGuide(name, opts...)
+	if err != nil {
+		return nil, err
+	}
 	g.Id = s.nextGuideKey
 	g.Pois = &[]pointOfInterest{}
 	s.Guides[g.Id] = g
 	s.nextGuideKey++
-	return g.Id, nil
+	return &g, nil
 }
 
-func (s *memoryStore) UpdateGuide(g Guide) error {
+func (s *memoryStore) UpdateGuide(g *guide) error {
 	if g.Id == 0 {
 		return errors.New("must set the id of the guide")
 	}
 	if _, ok := s.Guides[g.Id]; !ok {
 		return errors.New("cannot update guide does not exist")
 	}
-	s.Guides[g.Id] = g
+	s.Guides[g.Id] = *g
 	return nil
 }
 
-// GetAllGuides returns a []Guide of all the stored guides
-func (s memoryStore) GetAllGuides() []Guide {
-	allGuides := make([]Guide, 0, len(s.Guides))
+// GetAllGuides returns a []guide of all the stored guides
+func (s memoryStore) GetAllGuides() []guide {
+	allGuides := make([]guide, 0, len(s.Guides))
 	for _, h := range s.Guides {
 		allGuides = append(allGuides, h)
 	}
 	return allGuides
 }
 
-func (s *memoryStore) CreatePoi(poi pointOfInterest) (int64, error) {
+func (s *memoryStore) CreatePoi(name string, guideID int64, opts ...poiOption) (*pointOfInterest, error) {
+	poi, err := newPointOfInterest(name, guideID, opts...)
+	if err != nil {
+		return nil, err
+	}
 	g, ok := s.Guides[poi.GuideID]
 	if !ok {
-		return 0, errors.New("guide not found")
+		return nil, errors.New("guide not found")
 	}
 	poi.Id = s.nextPoiKey
 	*g.Pois = append(*g.Pois, poi)
 	s.nextPoiKey++
-	return poi.Id, nil
+	return &poi, nil
 }
 
-func (s *memoryStore) UpdatePoi(poi pointOfInterest) error {
+func (s *memoryStore) UpdatePoi(poi *pointOfInterest) error {
 	g, ok := s.Guides[poi.GuideID]
 	if !ok {
 		return errors.New("guide not found")
@@ -150,31 +164,32 @@ func OpenSQLiteStore(dbPath string) (sqliteStore, error) {
 	return store, nil
 }
 
-func (s *sqliteStore) CreateGuide(g Guide) (int64, error) {
+func (s *sqliteStore) CreateGuide(name string, opts ...guideOption) (*guide, error) {
+	g, err := newGuide(name, opts...)
 	stmt, err := s.db.Prepare(insertGuide)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	rs, err := stmt.Exec(g.Name, g.Description, g.Coordinate.Latitude, g.Coordinate.Longitude)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	lastInsertID, err := rs.LastInsertId()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-
-	return lastInsertID, nil
+	g.Id = lastInsertID
+	return &g, nil
 }
 
-func (s *sqliteStore) GetGuide(id int64) (Guide, error) {
+func (s *sqliteStore) GetGuide(id int64) (guide, error) {
 	rows, err := s.db.Query(getGuide, id)
 	if err != nil {
-		return Guide{}, err
+		return guide{}, err
 	}
 
-	g := Guide{}
+	g := guide{}
 
 	for rows.Next() {
 		var (
@@ -185,22 +200,22 @@ func (s *sqliteStore) GetGuide(id int64) (Guide, error) {
 		)
 		err = rows.Scan(&name, &description, &latitude, &longitude)
 		if err != nil {
-			return Guide{}, err
+			return guide{}, err
 		}
 		g.Id = id
 		g.Name = name
 		g.Description = description
-		g.Coordinate = Coordinate{Latitude: latitude, Longitude: longitude}
+		g.Coordinate = coordinate{Latitude: latitude, Longitude: longitude}
 	}
 
 	if err = rows.Err(); err != nil {
-		return Guide{}, err
+		return guide{}, err
 	}
 
 	return g, nil
 }
 
-func (s *sqliteStore) UpdateGuide(g Guide) error {
+func (s *sqliteStore) UpdateGuide(g *guide) error {
 	stmt, err := s.db.Prepare(updateGuide)
 	if err != nil {
 		return err
@@ -212,13 +227,13 @@ func (s *sqliteStore) UpdateGuide(g Guide) error {
 	return nil
 }
 
-func (s *sqliteStore) GetAllGuides() []Guide {
+func (s *sqliteStore) GetAllGuides() []guide {
 	rows, err := s.db.Query(getAllGuides)
 	if err != nil {
-		return []Guide{}
+		return []guide{}
 	}
 
-	guides := make([]Guide, 0)
+	guides := make([]guide, 0)
 
 	for rows.Next() {
 		var (
@@ -230,43 +245,47 @@ func (s *sqliteStore) GetAllGuides() []Guide {
 		)
 		err = rows.Scan(&id, &name, &description, &latitude, &longitude)
 		if err != nil {
-			return []Guide{}
+			return []guide{}
 		}
-		g := Guide{
+		g := guide{
 			Id:          id,
 			Name:        name,
 			Description: description,
-			Coordinate:  Coordinate{Latitude: latitude, Longitude: longitude},
+			Coordinate:  coordinate{Latitude: latitude, Longitude: longitude},
 		}
 		guides = append(guides, g)
 	}
 
 	if err = rows.Err(); err != nil {
-		return []Guide{}
+		return []guide{}
 	}
 
 	return guides
 }
 
-func (s *sqliteStore) CreatePoi(poi pointOfInterest) (int64, error) {
+func (s *sqliteStore) CreatePoi(name string, guideID int64, opts ...poiOption) (*pointOfInterest, error) {
+	poi, err := newPointOfInterest(name, guideID, opts...)
+	if err != nil {
+		return nil, err
+	}
 	stmt, err := s.db.Prepare(insertPoi)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	rs, err := stmt.Exec(poi.Name, poi.Description, poi.Coordinate.Latitude, poi.Coordinate.Longitude, poi.GuideID)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	lastInsertID, err := rs.LastInsertId()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-
-	return lastInsertID, nil
+	poi.Id = lastInsertID
+	return &poi, nil
 }
 
-func (s *sqliteStore) UpdatePoi(poi pointOfInterest) error {
+func (s *sqliteStore) UpdatePoi(poi *pointOfInterest) error {
 	stmt, err := s.db.Prepare(updatePoi)
 	if err != nil {
 		return err
@@ -300,7 +319,7 @@ func (s *sqliteStore) GetPoi(id int64) (pointOfInterest, error) {
 		poi.Id = id
 		poi.Name = name
 		poi.Description = description
-		poi.Coordinate = Coordinate{Latitude: latitude, Longitude: longitude}
+		poi.Coordinate = coordinate{Latitude: latitude, Longitude: longitude}
 		poi.GuideID = guideid
 	}
 
@@ -335,7 +354,7 @@ func (s *sqliteStore) GetAllPois(guideId int64) []pointOfInterest {
 			Id:          id,
 			Name:        name,
 			Description: description,
-			Coordinate:  Coordinate{Latitude: latitude, Longitude: longitude},
+			Coordinate:  coordinate{Latitude: latitude, Longitude: longitude},
 			GuideID:     guideId,
 		}
 		pois = append(pois, p)

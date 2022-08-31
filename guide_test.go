@@ -5,32 +5,9 @@ import (
 	"testing"
 )
 
-func TestNewGuide(t *testing.T) {
+func TestGuideWithValidStringCoordinatesErrorsOnInvalidCoordinates(t *testing.T) {
 	t.Parallel()
-	name := "San Cristobal de las Casas"
-	//16.737126144865194, -92.63750443638673
-	g, err := guide.NewGuide(name, guide.GuideWithValidStringCoordinates("16.73", "-92.63"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	got := g.Name
-
-	if name != got {
-		t.Errorf("Name a Guide named %s, got %s", name, got)
-	}
-}
-
-func TestNewGuideNameCannotBeEmpty(t *testing.T) {
-	t.Parallel()
-	_, err := guide.NewGuide("")
-	if err == nil {
-		t.Error("want error on empty Name")
-	}
-}
-
-func TestWithValidCoordinatesErrorsOnInvalidCoordinates(t *testing.T) {
-	t.Parallel()
+	store := guide.OpenMemoryStore()
 	//Latitude valid range [-90,90]
 	//Longitude valid range [-180,180]
 	testCases := []struct {
@@ -41,31 +18,11 @@ func TestWithValidCoordinatesErrorsOnInvalidCoordinates(t *testing.T) {
 		{name: "invalid Latitude", latitude: "92", longitude: "100"},
 		{name: "invalid Longitude", latitude: "-41", longitude: "181"},
 		{name: "invalid Longitude", latitude: "1", longitude: "-180.1"},
-	}
-	for _, tc := range testCases {
-		_, err := guide.NewGuide("test", guide.GuideWithValidStringCoordinates(tc.latitude, tc.longitude))
-		if err == nil {
-			t.Errorf("want error on %s, Latitude: %s  Longitude: %s", tc.name, tc.latitude, tc.longitude)
-		}
-	}
-}
-func TestWithValidStringCoordinatesErrorsOnInvalidCoordinates(t *testing.T) {
-	t.Parallel()
-	//Latitude valid range [-90,90]
-	//Longitude valid range [-180,180]
-	testCases := []struct {
-		name                string
-		latitude, longitude string
-	}{
 		{name: "empty Latitude", latitude: "", longitude: "100"},
 		{name: "empty Longitude", latitude: "11", longitude: ""},
-		{name: "invalid Latitude", latitude: "92", longitude: "100"},
-		{name: "invalid Latitude", latitude: "92", longitude: "100"},
-		{name: "invalid Longitude", latitude: "-41", longitude: "181"},
-		{name: "invalid Longitude", latitude: "1", longitude: "-180.1"},
 	}
 	for _, tc := range testCases {
-		_, err := guide.NewGuide("test", guide.GuideWithValidStringCoordinates(tc.latitude, tc.longitude))
+		_, err := store.CreateGuide(tc.name, guide.GuideWithValidStringCoordinates(tc.latitude, tc.longitude))
 		if err == nil {
 			t.Errorf("want error on %s, Latitude: %s  Longitude: %s", tc.name, tc.latitude, tc.longitude)
 		}
