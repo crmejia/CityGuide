@@ -20,15 +20,17 @@ type store interface {
 }
 type memoryStore struct {
 	Guides       map[int64]guide
-	nextGuideKey int64
-	nextPoiKey   int64
+	Pois         map[int64]pointOfInterest
+	NextGuideKey int64
+	NextPoiKey   int64
 }
 
 func OpenMemoryStore() memoryStore {
 	ms := memoryStore{
 		Guides:       map[int64]guide{},
-		nextGuideKey: 1,
-		nextPoiKey:   1,
+		Pois:         map[int64]pointOfInterest{},
+		NextGuideKey: 1,
+		NextPoiKey:   1,
 	}
 	return ms
 }
@@ -46,10 +48,9 @@ func (s *memoryStore) CreateGuide(name string, opts ...guideOption) (*guide, err
 	if err != nil {
 		return nil, err
 	}
-	g.Id = s.nextGuideKey
-	g.Pois = &[]pointOfInterest{}
+	g.Id = s.NextGuideKey
 	s.Guides[g.Id] = g
-	s.nextGuideKey++
+	s.NextGuideKey++
 	return &g, nil
 }
 
@@ -78,54 +79,41 @@ func (s *memoryStore) CreatePoi(name string, guideID int64, opts ...poiOption) (
 	if err != nil {
 		return nil, err
 	}
-	g, ok := s.Guides[poi.GuideID]
+	_, ok := s.Guides[poi.GuideID]
 	if !ok {
 		return nil, errors.New("guide not found")
 	}
-	poi.Id = s.nextPoiKey
-	*g.Pois = append(*g.Pois, poi)
-	s.nextPoiKey++
+	poi.Id = s.NextPoiKey
+	s.Pois[poi.Id] = poi
+	s.NextPoiKey++
 	return &poi, nil
 }
 
 func (s *memoryStore) UpdatePoi(poi *pointOfInterest) error {
-	g, ok := s.Guides[poi.GuideID]
-	if !ok {
-		return errors.New("guide not found")
-	}
-	found := false
-	for i, _ := range *g.Pois {
-		if (*g.Pois)[i].Id == poi.Id {
-			found = true
-			(*g.Pois)[i].Name = poi.Name
-			(*g.Pois)[i].Description = poi.Description
-			(*g.Pois)[i].Coordinate = poi.Coordinate
-		}
-	}
-
-	if !found {
-		return errors.New("poi not found")
-	}
+	s.Pois[poi.Id] = *poi //todo validate poi
 	return nil
 }
 
 func (s *memoryStore) GetPoi(id int64) (pointOfInterest, error) {
-	for _, g := range s.Guides {
-		for _, p := range *g.Pois {
-			if p.Id == id {
-				return p, nil
-			}
-		}
+	poi, ok := s.Pois[id]
+	if ok {
+		return poi, nil
 	}
 	return pointOfInterest{}, errors.New("poi not found")
 }
 
 func (s *memoryStore) GetAllPois(guideId int64) []pointOfInterest {
-	g, ok := s.Guides[guideId]
+	_, ok := s.Guides[guideId]
 	if !ok {
 		return []pointOfInterest{}
 	}
-	return *g.Pois
+	pois := []pointOfInterest{}
+	for _, poi := range s.Pois {
+		if poi.GuideID == guideId {
+			pois = append(pois, poi)
+		}
+	}
+	return pois
 }
 
 type sqliteStore struct {
@@ -141,7 +129,7 @@ func OpenSQLiteStore(dbPath string) (sqliteStore, error) {
 		return sqliteStore{}, err
 	}
 
-	for _, stmt := range []string{pragmaWALEnabled, pragma500BusyTimeout, pragma500BusyTimeout} {
+	for _, stmt := range []string{pragmaWALEnabled, pragma500BusyTimeout, pragmaForeignKeysON} {
 		_, err = db.Exec(stmt, nil)
 		if err != nil {
 			return sqliteStore{}, err
@@ -166,6 +154,9 @@ func OpenSQLiteStore(dbPath string) (sqliteStore, error) {
 
 func (s *sqliteStore) CreateGuide(name string, opts ...guideOption) (*guide, error) {
 	g, err := newGuide(name, opts...)
+	if err != nil {
+		return nil, err
+	}
 	stmt, err := s.db.Prepare(insertGuide)
 	if err != nil {
 		return nil, err
@@ -282,7 +273,6 @@ func (s *sqliteStore) CreatePoi(name string, guideID int64, opts ...poiOption) (
 		return nil, err
 	}
 	poi.Id = lastInsertID
-	*g.Pois = append(*g.Pois, poi)
 	return &poi, nil
 }
 
@@ -378,7 +368,8 @@ id INTEGER NOT NULL PRIMARY KEY,
 name TEXT  NOT NULL,
 description TEXT,
 latitude REAL NOT NULL,
-longitude REAL NOT NULL);`
+longitude REAL NOT NULL,
+CHECK (name <> ''));`
 
 const createPoiTable = `
 CREATE TABLE IF NOT EXISTS poi(
@@ -388,7 +379,8 @@ description TEXT,
 latitude REAL NOT NULL,
 longitude REAL NOT NULL,
 guideId INTEGER NOT NULL,
-FOREIGN KEY(guideId) REFERENCES guide(id));`
+FOREIGN KEY(guideId) REFERENCES guide(id),
+CHECK (name <> ''));`
 
 const insertGuide = `INSERT INTO guide(name, description, latitude, longitude ) VALUES (?, ?, ?, ?);`
 

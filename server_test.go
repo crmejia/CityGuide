@@ -390,44 +390,13 @@ func TestCreatePoiHandlerPost(t *testing.T) {
 	if res.StatusCode != http.StatusSeeOther {
 		t.Errorf("expected status 303 SeeOther, got %d", res.StatusCode)
 	}
-	if len(*store.Guides[1].Pois) > 1 {
-		t.Error("want store to contain new guide")
+	pois := store.GetAllPois(g.Id)
+	if len(pois) != 1 {
+		t.Error("want store to contain new poi")
+	}
+
+	got := pois[0]
+	if got.Description != "blah blah" {
+		t.Error("want poi description to be set")
 	}
 }
-
-//func TestRunHTTPServer(t *testing.T) {
-//	t.Parallel()
-//	freePort, err := freeport.GetFreePort()
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	//const (
-//	//	localHostAddress = "127.0.0.1"
-//	//)
-//	//address := fmt.Sprintf("%s:%d", localHostAddress, freePort)
-//	address := fmt.Sprintf(":%d", freePort)
-//	go guide.ServerRun(address)
-//
-//	res, err := http.GetGuide("http://localhost" + address)
-//	for err != nil {
-//		switch {
-//		case strings.Contains(err.Error(), "connection refused"):
-//			time.Sleep(5 * time.Millisecond)
-//			res, err = http.GetGuide(address)
-//		default:
-//			t.Fatal(err)
-//		}
-//	}
-//	if res.StatusCode != http.StatusOK {
-//		t.Errorf("expected status 200 OK, body %d", res.StatusCode)
-//	}
-//	body, err := io.ReadAll(res.Body)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	want := "San Cristobal"
-//	got := string(body)
-//	if !strings.Contains(got, want) {
-//		t.Errorf("want index to contain %s\nGot:\n%s", want, got)
-//	}
-//}

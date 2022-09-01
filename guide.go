@@ -48,11 +48,7 @@ type guide struct {
 	Name        string
 	Description string
 	Coordinate  coordinate
-	Pois        *[]pointOfInterest
-	//TODO should this be private?
-	//in order to avoid modifications by the user
-	//e.g. g.Pois = append(pois.Pois, Poi{})but in reality
-	//the user as to create objects to insert
+	Pois        []pointOfInterest //used to render /guide/:id
 }
 
 type coordinate struct {
@@ -100,7 +96,7 @@ func newGuide(name string, opts ...guideOption) (guide, error) {
 	}
 	g := guide{
 		Name: name,
-		Pois: &[]pointOfInterest{},
+		Pois: []pointOfInterest{},
 	}
 
 	for _, opt := range opts {

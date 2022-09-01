@@ -63,6 +63,7 @@ func (c *Server) HandleGuide() http.HandlerFunc {
 			http.Error(w, "guide Not Found", http.StatusNotFound)
 			return
 		}
+		g.Pois = c.store.GetAllPois(id)
 
 		render(w, r, "templates/guide.html", g)
 	}
@@ -123,17 +124,15 @@ func (s *Server) HandleCreatePoi() http.HandlerFunc {
 			return
 		}
 
-		newPoi, err := s.store.CreatePoi(poiForm.Name, gid, PoiWithValidStringCoordinates(poiForm.Latitude, poiForm.Longitude))
+		_, err = s.store.CreatePoi(poiForm.Name, gid, PoiWithValidStringCoordinates(poiForm.Latitude, poiForm.Longitude), PoiWithDescription(poiForm.Description))
 		if err != nil {
 			poiForm.Errors = append(poiForm.Errors, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
 			render(w, r, "templates/createPoi.html", poiForm)
 			return
 		}
-		//TODO this should be a store operation func (s *store)CreatePoi(guideID, Poi{})(poiID, error)
-		//g.Pois = append(*g.Pois, poi)
-		//TODO could use gid as it's legit?
-		gURL := fmt.Sprintf("/guide/%d", newPoi.GuideID)
+
+		gURL := fmt.Sprintf("/guide/%d", gid)
 		http.Redirect(w, r, gURL, http.StatusSeeOther)
 	}
 }
@@ -146,21 +145,10 @@ func (s *Server) Run() {
 }
 
 func ServerRun(address string) {
-	store := memoryStore{
-		Guides: map[int64]guide{
-			1: guide{Id: 1, Name: "Nairobi", Coordinate: coordinate{10, 10}},
-			2: guide{Id: 2, Name: "Fukuoka", Coordinate: coordinate{11, 11}},
-			3: guide{Id: 3, Name: "Guia de restaurantes Roma, CDMX", Coordinate: coordinate{12, 12}},
-			4: guide{Id: 4, Name: "Guia de Cuzco", Coordinate: coordinate{13, 13}},
-			5: guide{Id: 5, Name: "San Cristobal de las Casas", Coordinate: coordinate{Latitude: 16.7371, Longitude: -92.6375},
-				Description: "Beatiful town in the mountains of the state of Chiapas.",
-				Pois: &[]pointOfInterest{
-					{Name: "Cafeología", Coordinate: coordinate{16.737393, -92.635857}, Description: "Best Coffee in town. Maybe even the best coffee in the country."},
-					{Name: "Centralita Coworking", Coordinate: coordinate{16.739030, -92.635001}, Description: "Nice Coworking with a cool vibe."},
-				}},
-		},
+	store, err := OpenSQLiteStore("city_guide.db")
+	if err != nil {
+		log.Fatal(err)
 	}
-	store.nextGuideKey = 6
 	s, err := NewServer(address, &store)
 	if err != nil {
 		log.Fatal(err)

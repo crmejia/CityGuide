@@ -228,6 +228,7 @@ func TestSqliteStore_PoiRoundtripCreateUpdateGetPoi(t *testing.T) {
 	}
 	want := "testPOI"
 	poi.Name = want
+	poi.Description = want
 	err = sqliteStore.UpdatePoi(poi)
 	if err != nil {
 		t.Fatal(err)
@@ -240,6 +241,9 @@ func TestSqliteStore_PoiRoundtripCreateUpdateGetPoi(t *testing.T) {
 
 	if want != got.Name {
 		t.Errorf("want rountrip(create,update,get) test to return %s, got %s", want, got.Name)
+	}
+	if want != got.Description {
+		t.Errorf("want rountrip(create,update,get) description to be %s, got %s", want, got.Description)
 	}
 }
 
@@ -265,5 +269,51 @@ func TestSQLiteStore_GetAllPois(t *testing.T) {
 	got := sqliteStore.GetAllPois(g.Id)
 	if len(got) != len(pois) {
 		t.Errorf("want GetAllPois to return %d points of interest, got %d", len(pois), len(got))
+	}
+}
+
+func TestSqliteStore_GuideErrors(t *testing.T) {
+	t.Parallel()
+	tempDB := t.TempDir() + "errors.db"
+	sqliteStore, err := guide.OpenSQLiteStore(tempDB)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = sqliteStore.CreateGuide("", guide.GuideWithValidStringCoordinates("10", "10"))
+	if err == nil {
+		t.Error("want error on empty guide name")
+	}
+	_, err = sqliteStore.CreateGuide("test", guide.GuideWithValidStringCoordinates("1000", "10"))
+	if err == nil {
+		t.Error("want error on invalid coordinates")
+	}
+}
+
+func TestSqliteStore_PoiErrors(t *testing.T) {
+	t.Parallel()
+	tempDB := t.TempDir() + "errors.db"
+	sqliteStore, err := guide.OpenSQLiteStore(tempDB)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = sqliteStore.CreatePoi("test", 100, guide.PoiWithValidStringCoordinates("10", "10"))
+	if err == nil {
+		t.Error("want error on non-existing guide")
+	}
+
+	g, err := sqliteStore.CreateGuide("test", guide.GuideWithValidStringCoordinates("10", "10"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = sqliteStore.CreatePoi("", g.Id, guide.PoiWithValidStringCoordinates("10", "10"))
+	if err == nil {
+		t.Error("want error on empty poi name")
+	}
+	_, err = sqliteStore.CreatePoi("test", g.Id, guide.PoiWithValidStringCoordinates("1110", "10"))
+	if err == nil {
+		t.Error("want error on invalid coordinates")
 	}
 }
