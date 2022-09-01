@@ -75,17 +75,17 @@ func (s *Server) HandleCreateGuide() http.HandlerFunc {
 			return
 		}
 		//http.MethodPost
-		guideform := guideForm{
+		guideForm := guideForm{
 			Name:        r.PostFormValue("name"),
 			Description: r.PostFormValue("description"),
 			Latitude:    r.PostFormValue("latitude"),
 			Longitude:   r.PostFormValue("longitude"),
 		}
-		g, err := s.store.CreateGuide(guideform.Name, GuideWithValidStringCoordinates(guideform.Latitude, guideform.Longitude))
+		g, err := s.store.CreateGuide(guideForm.Name, GuideWithValidStringCoordinates(guideForm.Latitude, guideForm.Longitude))
 		if err != nil {
-			guideform.Errors = append(guideform.Errors, err.Error())
+			guideForm.Errors = append(guideForm.Errors, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
-			render(w, r, "templates/createGuide.html", guideform)
+			render(w, r, "templates/createGuide.html", guideForm)
 			return
 		}
 		gURL := fmt.Sprintf("/guide/%d", g.Id)
@@ -122,16 +122,7 @@ func (s *Server) HandleCreatePoi() http.HandlerFunc {
 			render(w, r, "templates/createPoi.html", poiForm)
 			return
 		}
-		//get guide entity using store exit if it does not exists
-		// guide.newPointOfInterest
-		//http.MethodPost
-		//poi, err := newPointOfInterest(poiForm.Name, gid, PoiWithValidStringCoordinates(poiForm.Latitude, poiForm.Longitude))
-		//if err != nil {
-		//	poiForm.Errors = append(poiForm.Errors, err.Error())
-		//	w.WriteHeader(http.StatusBadRequest)
-		//	render(w, r, "templates/createPoi.html", poiForm)
-		//	return
-		//}
+
 		newPoi, err := s.store.CreatePoi(poiForm.Name, gid, PoiWithValidStringCoordinates(poiForm.Latitude, poiForm.Longitude))
 		if err != nil {
 			poiForm.Errors = append(poiForm.Errors, err.Error())

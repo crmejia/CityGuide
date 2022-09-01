@@ -30,13 +30,13 @@ func TestIndexHandler(t *testing.T) {
 	store := guide.OpenMemoryStore()
 	store.CreateGuide("Nairobi", guide.GuideWithValidStringCoordinates("10", "10"))
 	store.CreateGuide("Fukuoka", guide.GuideWithValidStringCoordinates("10", "10"))
-	store.CreateGuide("Guia de Restaruatnese Roma, CDMX", guide.GuideWithValidStringCoordinates("10", "10"))
+	store.CreateGuide("Guia de Restaurates Roma, CDMX", guide.GuideWithValidStringCoordinates("10", "10"))
 
-	freeport, err := freeport.GetFreePort()
+	freePort, err := freeport.GetFreePort()
 	if err != nil {
 		t.Fatal(err)
 	}
-	address := fmt.Sprintf("localhost:%d", freeport)
+	address := fmt.Sprintf("localhost:%d", freePort)
 	server, err := guide.NewServer(address, &store)
 	if err != nil {
 		t.Fatal(err)
@@ -126,11 +126,11 @@ func TestGuideHandlerRenders404NotFound(t *testing.T) {
 func TestGuideHandlerRenders400NoId(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	freeport, err := freeport.GetFreePort()
+	freePort, err := freeport.GetFreePort()
 	if err != nil {
 		t.Fatal(err)
 	}
-	address := fmt.Sprintf("localhost:%d", freeport)
+	address := fmt.Sprintf("localhost:%d", freePort)
 	server, err := guide.NewServer(address, &store)
 	if err != nil {
 		t.Fatal(err)
@@ -219,11 +219,11 @@ func TestCreateGuideHandlerPostFormErrors(t *testing.T) {
 		{"name=test&latitude=10&longitude=notanumber", "longitude has to be a number"},
 	}
 	store := guide.OpenMemoryStore()
-	freeport, err := freeport.GetFreePort()
+	freePort, err := freeport.GetFreePort()
 	if err != nil {
 		t.Fatal(err)
 	}
-	address := fmt.Sprintf("localhost:%d", freeport)
+	address := fmt.Sprintf("localhost:%d", freePort)
 	server, err := guide.NewServer(address, &store)
 	if err != nil {
 		t.Fatal(err)
@@ -318,94 +318,82 @@ func TestCreatePoiHandlerErrors(t *testing.T) {
 	}
 }
 
-//func TestCreatePoiHandlerFormErrors(t *testing.T) {
-//	t.Parallel()
-//	testCases := []struct {
-//		form string
-//		want string
-//	}{
-//		{"name=&description=blah blah&latitude=10&longitude=10", "name cannot be empty"},
-//		{"name=test&latitude=&longitude=10", "latitude cannot be empty"},
-//		{"name=test&latitude=10&longitude=", "longitude cannot be empty"},
-//		{"name=test&latitude=notanumber&longitude=10", "latitude has to be a number"},
-//		{"name=test&latitude=10&longitude=notanumber", "longitude has to be a number"},
-//	}
-//
-//	//todo this guide option should not be tested here
-//	//guideOption := guide.GuideWithValidStringCoordinates("16.7371", "-92.6375")
-//	//err := guideOption(&guide.guide{Name: "San Cristobal"})
-//	//if err != nil {
-//	//	t.Fatal(err)
-//	//}
-//
-//	store := guide.OpenMemoryStore()
-//	//todo should this stuct be part of the testCase struct?
-//	guideForm :=
-//	store.CreateGuide(guideForm)
-//	//store.Guides = map[int64]guide.guide{
-//	//	1: g,
-//	//}
-//	server, err := guide.NewServer("localhost:8080", &store)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	handler := server.HandleCreatePoi()
-//	for _, tc := range testCases {
-//		rec := httptest.NewRecorder()
-//		req := httptest.NewRequest(http.MethodPost, "/guide/poi/create/1", strings.NewReader(tc.form))
-//		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-//		handler(rec, req)
-//
-//		res := rec.Result()
-//		if res.StatusCode != http.StatusBadRequest {
-//			t.Errorf("expected 400 Bad Request, got %d", res.StatusCode)
-//		}
-//		body, err := io.ReadAll(res.Body)
-//		if err != nil {
-//			t.Fatal(err)
-//		}
-//		got := string(body)
-//		if !strings.Contains(got, tc.want) {
-//			t.Errorf("want index to contain %s\nGot:\n%s", tc.want, got)
-//		}
-//	}
-//}
+func TestCreatePoiHandlerFormErrors(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		form string
+		want string
+	}{
+		{"name=&description=blah blah&latitude=10&longitude=10", "name cannot be empty"},
+		{"name=test&latitude=&longitude=10", "latitude cannot be empty"},
+		{"name=test&latitude=10&longitude=", "longitude cannot be empty"},
+		{"name=test&latitude=notanumber&longitude=10", "latitude has to be a number"},
+		{"name=test&latitude=10&longitude=notanumber", "longitude has to be a number"},
+	}
+	store := guide.OpenMemoryStore()
+	g, err := store.CreateGuide("test", guide.GuideWithValidStringCoordinates("10", "10"))
 
-// todo func TestCreatePoiHandlerPost(t *testing.T) {
-//func TestCreatePoiHandlerPost(t *testing.T) {
-//	t.Parallel()
-//	g, err := guide.newGuide("San Cristobal", guide.GuideWithValidStringCoordinates("16.7371", "-92.6375"))
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	store := guide.OpenMemoryStore()
-//	store.Guides = map[int64]guide.guide{
-//		1: g,
-//	}
-//	freeport, err := freeport.GetFreePort()
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	address := fmt.Sprintf("localhost:%d", freeport)
-//	server, err := guide.NewServer(address, &store)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	rec := httptest.NewRecorder()
-//	form := strings.NewReader("name=Test&description=blah blah&latitude=10&longitude=10")
-//	req := httptest.NewRequest(http.MethodPost, "/guide/poi/create/1", form)
-//	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-//	handler := server.HandleCreatePoi()
-//	handler(rec, req)
-//
-//	res := rec.Result()
-//	if res.StatusCode != http.StatusSeeOther {
-//		t.Errorf("expected status 303 SeeOther, got %d", res.StatusCode)
-//	}
-//	if len(*store.Guides[1].Pois) > 1 {
-//		t.Error("want store to contain new guide")
-//	}
-//}
+	server, err := guide.NewServer("localhost:8080", &store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := server.HandleCreatePoi()
+	for _, tc := range testCases {
+		rec := httptest.NewRecorder()
+
+		target := fmt.Sprintf("/guide/poi/create/%d", g.Id)
+		req := httptest.NewRequest(http.MethodPost, target, strings.NewReader(tc.form))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		handler(rec, req)
+
+		res := rec.Result()
+		if res.StatusCode != http.StatusBadRequest {
+			t.Errorf("expected 400 Bad Request, got %d", res.StatusCode)
+		}
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := string(body)
+		if !strings.Contains(got, tc.want) {
+			t.Errorf("want index to contain %s\nGot:\n%s", tc.want, got)
+		}
+	}
+}
+
+func TestCreatePoiHandlerPost(t *testing.T) {
+	t.Parallel()
+	store := guide.OpenMemoryStore()
+	g, err := store.CreateGuide("San Cristobal", guide.GuideWithValidStringCoordinates("16.7371", "-92.6375"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	freeport, err := freeport.GetFreePort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	address := fmt.Sprintf("localhost:%d", freeport)
+	server, err := guide.NewServer(address, &store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	form := strings.NewReader("name=Test&description=blah blah&latitude=10&longitude=10")
+	target := fmt.Sprintf("/guide/poi/create/%d", g.Id)
+	req := httptest.NewRequest(http.MethodPost, target, form)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	handler := server.HandleCreatePoi()
+	handler(rec, req)
+
+	res := rec.Result()
+	if res.StatusCode != http.StatusSeeOther {
+		t.Errorf("expected status 303 SeeOther, got %d", res.StatusCode)
+	}
+	if len(*store.Guides[1].Pois) > 1 {
+		t.Error("want store to contain new guide")
+	}
+}
 
 //func TestRunHTTPServer(t *testing.T) {
 //	t.Parallel()

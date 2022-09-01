@@ -282,6 +282,7 @@ func (s *sqliteStore) CreatePoi(name string, guideID int64, opts ...poiOption) (
 		return nil, err
 	}
 	poi.Id = lastInsertID
+	*g.Pois = append(*g.Pois, poi)
 	return &poi, nil
 }
 
