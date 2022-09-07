@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 )
@@ -14,12 +15,12 @@ import (
 func TestNewServerErrors(t *testing.T) {
 	t.Parallel()
 	s := guide.OpenMemoryStore()
-	_, err := guide.NewServer("", &s)
+	_, err := guide.NewServer("", &s, os.Stdout)
 	if err == nil {
 		t.Errorf("want error on empty server address")
 	}
 
-	_, err = guide.NewServer("address", nil)
+	_, err = guide.NewServer("address", nil, os.Stdout)
 	if err == nil {
 		t.Errorf("want error on nil store")
 	}
@@ -28,16 +29,19 @@ func TestNewServerErrors(t *testing.T) {
 func TestIndexHandler(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	store.CreateGuide("Nairobi", guide.GuideWithValidStringCoordinates("10", "10"))
-	store.CreateGuide("Fukuoka", guide.GuideWithValidStringCoordinates("10", "10"))
-	store.CreateGuide("Guia de Restaurates Roma, CDMX", guide.GuideWithValidStringCoordinates("10", "10"))
+	_, err := store.CreateGuide("Nairobi", guide.GuideWithValidStringCoordinates("10", "10"))
+	_, err = store.CreateGuide("Fukuoka", guide.GuideWithValidStringCoordinates("10", "10"))
+	_, err = store.CreateGuide("Guia de Restaurates Roma, CDMX", guide.GuideWithValidStringCoordinates("10", "10"))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	freePort, err := freeport.GetFreePort()
 	if err != nil {
 		t.Fatal(err)
 	}
 	address := fmt.Sprintf("localhost:%d", freePort)
-	server, err := guide.NewServer(address, &store)
+	server, err := guide.NewServer(address, &store, os.Stdout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +75,7 @@ func TestGuideHandlerRendersMap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server, err := guide.NewServer("localhost:8080", &store)
+	server, err := guide.NewServer("localhost:8080", &store, os.Stdout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +102,7 @@ func TestGuideHandlerRendersMap(t *testing.T) {
 func TestGuideHandlerRenders404NotFound(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	server, err := guide.NewServer("localhost:8080", &store)
+	server, err := guide.NewServer("localhost:8080", &store, os.Stdout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +135,7 @@ func TestGuideHandlerRenders400NoId(t *testing.T) {
 		t.Fatal(err)
 	}
 	address := fmt.Sprintf("localhost:%d", freePort)
-	server, err := guide.NewServer(address, &store)
+	server, err := guide.NewServer(address, &store, os.Stdout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +163,7 @@ func TestGuideHandlerRenders400NoId(t *testing.T) {
 func TestCreateGuideHandlerGetRendersForm(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	server, err := guide.NewServer("localhost:8080", &store)
+	server, err := guide.NewServer("localhost:8080", &store, os.Stdout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +190,7 @@ func TestCreateGuideHandlerGetRendersForm(t *testing.T) {
 func TestCreateGuideHandlerPostCreatesGuide(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	server, err := guide.NewServer("localhost:8080", &store)
+	server, err := guide.NewServer("localhost:8080", &store, os.Stdout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,6 +207,14 @@ func TestCreateGuideHandlerPostCreatesGuide(t *testing.T) {
 	}
 	if len(store.Guides) != 1 {
 		t.Error("want store to contain new guide")
+	}
+
+	g, err := store.GetGuide(store.NextGuideKey - 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.Description == "" {
+		t.Error("want guide description to not be empty")
 	}
 }
 
@@ -224,7 +236,7 @@ func TestCreateGuideHandlerPostFormErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 	address := fmt.Sprintf("localhost:%d", freePort)
-	server, err := guide.NewServer(address, &store)
+	server, err := guide.NewServer(address, &store, os.Stdout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +269,7 @@ func TestCreatePoiHandlerGetRendersForm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server, err := guide.NewServer("localhost:8080", &store)
+	server, err := guide.NewServer("localhost:8080", &store, os.Stdout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -293,7 +305,7 @@ func TestCreatePoiHandlerErrors(t *testing.T) {
 		{"/guide/poi/create/1", http.StatusNotFound, "guide not found"},
 	}
 	store := guide.OpenMemoryStore()
-	server, err := guide.NewServer("localhost:8080", &store)
+	server, err := guide.NewServer("localhost:8080", &store, os.Stdout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -333,7 +345,7 @@ func TestCreatePoiHandlerFormErrors(t *testing.T) {
 	store := guide.OpenMemoryStore()
 	g, err := store.CreateGuide("test", guide.GuideWithValidStringCoordinates("10", "10"))
 
-	server, err := guide.NewServer("localhost:8080", &store)
+	server, err := guide.NewServer("localhost:8080", &store, os.Stdout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -369,12 +381,12 @@ func TestCreatePoiHandlerPost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	freeport, err := freeport.GetFreePort()
+	freePort, err := freeport.GetFreePort()
 	if err != nil {
 		t.Fatal(err)
 	}
-	address := fmt.Sprintf("localhost:%d", freeport)
-	server, err := guide.NewServer(address, &store)
+	address := fmt.Sprintf("localhost:%d", freePort)
+	server, err := guide.NewServer(address, &store, os.Stdout)
 	if err != nil {
 		t.Fatal(err)
 	}

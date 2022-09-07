@@ -1,7 +1,10 @@
 package main
 
-import "guide"
+import (
+	"guide"
+	"os"
+)
 
 func main() {
-	guide.ServerRun(":8080")
+	guide.RunServer(os.Args[1:], os.Stdout)
 }

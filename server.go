@@ -4,8 +4,9 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"github.com/mitchellh/go-homedir"
 	"html/template"
-	"log"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,9 +15,10 @@ import (
 type Server struct {
 	store store
 	*http.Server
+	output io.Writer
 }
 
-func NewServer(address string, store store) (Server, error) {
+func NewServer(address string, store store, output io.Writer) (Server, error) {
 	if address == "" {
 		return Server{}, errors.New("server address cannot be empty")
 	}
@@ -29,6 +31,7 @@ func NewServer(address string, store store) (Server, error) {
 		Server: &http.Server{
 			Addr: address,
 		},
+		output: output,
 	}
 
 	server.Handler = server.routes()
@@ -44,7 +47,7 @@ func (s *Server) HandleIndex() http.HandlerFunc {
 	}
 }
 
-func (c *Server) HandleGuide() http.HandlerFunc {
+func (s *Server) HandleGuide() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		p := strings.Split(r.URL.Path, "/")
 		if len(p) < 3 {
@@ -58,12 +61,12 @@ func (c *Server) HandleGuide() http.HandlerFunc {
 			http.Error(w, "not able to parse guide ID", http.StatusBadRequest)
 			return
 		}
-		g, err := c.store.GetGuide(id)
+		g, err := s.store.GetGuide(id)
 		if err != nil {
 			http.Error(w, "guide Not Found", http.StatusNotFound)
 			return
 		}
-		g.Pois = c.store.GetAllPois(id)
+		g.Pois = s.store.GetAllPois(id)
 
 		render(w, r, "templates/guide.html", g)
 	}
@@ -82,7 +85,7 @@ func (s *Server) HandleCreateGuide() http.HandlerFunc {
 			Latitude:    r.PostFormValue("latitude"),
 			Longitude:   r.PostFormValue("longitude"),
 		}
-		g, err := s.store.CreateGuide(guideForm.Name, GuideWithValidStringCoordinates(guideForm.Latitude, guideForm.Longitude))
+		g, err := s.store.CreateGuide(guideForm.Name, GuideWithValidStringCoordinates(guideForm.Latitude, guideForm.Longitude), GuideWithDescription(guideForm.Description))
 		if err != nil {
 			guideForm.Errors = append(guideForm.Errors, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
@@ -137,21 +140,37 @@ func (s *Server) HandleCreatePoi() http.HandlerFunc {
 	}
 }
 func (s *Server) Run() {
-	log.Println("starting http server")
+	fmt.Fprintln(s.output, "starting http server")
 	err := s.ListenAndServe()
 	if err != http.ErrServerClosed {
-		log.Fatal(err)
+		fmt.Fprintln(s.output, err)
+		return
 	}
 }
 
-func ServerRun(address string) {
-	store, err := OpenSQLiteStore("city_guide.db")
-	if err != nil {
-		log.Fatal(err)
+func RunServer(args []string, output io.Writer) {
+	if len(args) == 0 {
+		fmt.Fprintln(output, "no address provided")
+		return
 	}
-	s, err := NewServer(address, &store)
+	if len(args) > 1 {
+		fmt.Fprintln(output, "too many args provided")
+		return
+	}
+	homeDir, err := homedir.Dir()
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintln(output, err)
+		return
+	}
+	store, err := OpenSQLiteStore(homeDir + "/city_guide.db")
+	if err != nil {
+		fmt.Fprintln(output, err)
+		return
+	}
+	s, err := NewServer(args[0], &store, output)
+	if err != nil {
+		fmt.Fprintln(output, err)
+		return
 	}
 	s.Run()
 }
