@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -148,14 +149,11 @@ func (s *Server) Run() {
 	}
 }
 
-func RunServer(args []string, output io.Writer) {
-	if len(args) == 0 {
-		fmt.Fprintln(output, "no address provided")
-		return
-	}
-	if len(args) > 1 {
-		fmt.Fprintln(output, "too many args provided")
-		return
+func RunServer(output io.Writer) {
+	address := os.Getenv("ADDRESS")
+	if address == "" {
+		fmt.Fprintln(output, "no address provided, defaulting to :8080")
+		address = ":8080"
 	}
 	homeDir, err := homedir.Dir()
 	if err != nil {
@@ -167,7 +165,7 @@ func RunServer(args []string, output io.Writer) {
 		fmt.Fprintln(output, err)
 		return
 	}
-	s, err := NewServer(args[0], &store, output)
+	s, err := NewServer(address, &store, output)
 	if err != nil {
 		fmt.Fprintln(output, err)
 		return

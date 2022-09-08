@@ -5,7 +5,9 @@ Description=cityguide
 Type=simple
 Restart=always
 RestartSec=5s
-ExecStart=/home/cityguide/go/main
+ExecStart=/usr/local/bin/cityguide
+User=cityguide
+UMask=007
 
 [Install]
 WantedBy=multi-user.target

@@ -6,5 +6,5 @@ import (
 )
 
 func main() {
-	guide.RunServer(os.Args[1:], os.Stdout)
+	guide.RunServer(os.Stdout)
 }
