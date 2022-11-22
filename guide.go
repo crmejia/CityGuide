@@ -48,7 +48,7 @@ type guide struct {
 	Name        string
 	Description string
 	Coordinate  coordinate
-	Pois        []pointOfInterest //used to render /guide/:id
+	Pois        []pointOfInterest //used to render /guide/:Id
 }
 
 type coordinate struct {
@@ -149,4 +149,9 @@ type poiForm struct {
 	GuideName                              string
 	Name, Description, Latitude, Longitude string
 	Errors                                 []string
+}
+
+type userForm struct {
+	Username, Password, ConfirmPassword, Email string
+	Errors                                     []string
 }

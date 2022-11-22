@@ -317,3 +317,50 @@ func TestSqliteStore_PoiErrors(t *testing.T) {
 		t.Error("want error on invalid coordinates")
 	}
 }
+
+func TestSQLiteStore_userRoundtripCreateGet(t *testing.T) {
+	t.Parallel()
+	tempDB := t.TempDir() + "userRoundtrip.store"
+	store, err := guide.OpenSQLiteStore(tempDB)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := "test"
+	u, err := store.CreateUser(want, "Password", "Password", "Email@test.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := store.GetUser(u.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if want != got.Username {
+		t.Errorf("want Username to be %s, got %s", want, got.Username)
+	}
+}
+
+func TestSQLiteStore_CreateUserErrors(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name, username, password, confirmPassword, email string
+	}{
+		{"create user with short password(< 8 characters)", "test", "short", "short", "email@test.com"},
+		{"create user with empty name", "", "password", "password", "email@test.com"},
+		{"create user with empty password", "test", "", "", "email@test.com"},
+		{"create user with empty email", "test", "password", "password", ""},
+	}
+	tempDB := t.TempDir() + "shortPassword.store"
+	store, err := guide.OpenSQLiteStore(tempDB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range testCases {
+		_, err = store.CreateUser(tc.username, tc.password, tc.confirmPassword, tc.email)
+		if err == nil {
+			t.Errorf("want error if %s", tc.name)
+		}
+	}
+}

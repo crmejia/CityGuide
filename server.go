@@ -108,7 +108,7 @@ func (s *Server) HandleCreatePoi() http.HandlerFunc {
 		guideID := p[4]
 		gid, err := strconv.ParseInt(guideID, 10, 64)
 		if err != nil {
-			http.Error(w, "please provide valid guide id", http.StatusBadRequest)
+			http.Error(w, "please provide valid guide Id", http.StatusBadRequest)
 		}
 		g, err := s.store.GetGuide(gid)
 		if err != nil {
@@ -140,6 +140,31 @@ func (s *Server) HandleCreatePoi() http.HandlerFunc {
 		http.Redirect(w, r, gURL, http.StatusSeeOther)
 	}
 }
+
+func (s *Server) HandleCreateUser() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			render(w, r, "templates/createUser.html", nil)
+			return
+		}
+		//http.MethodPost
+		userForm := userForm{
+			Username:        r.PostFormValue("username"),
+			Password:        r.PostFormValue("password"),
+			ConfirmPassword: r.PostFormValue("confirm-password"),
+			Email:           r.PostFormValue("email"),
+		}
+		_, err := s.store.CreateUser(userForm.Username, userForm.Password, userForm.ConfirmPassword, userForm.Email)
+		if err != nil {
+			userForm.Errors = append(userForm.Errors, err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			render(w, r, "templates/createUser.html", userForm)
+			return
+		}
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
+}
+
 func (s *Server) Run() {
 	fmt.Fprintln(s.output, "starting http server")
 	err := s.ListenAndServe()
@@ -178,6 +203,7 @@ func (s *Server) routes() http.Handler {
 	router.HandleFunc("/guide/", s.HandleGuide())
 	router.HandleFunc("/guide/create/", s.HandleCreateGuide())
 	router.HandleFunc("/guide/poi/create/", s.HandleCreatePoi())
+	router.HandleFunc("/user/signup/", s.HandleCreateUser())
 
 	return router
 }
