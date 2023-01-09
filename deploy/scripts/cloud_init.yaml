@@ -1,0 +1,62 @@
+#cloud-config
+# https://gist.github.com/syntaqx/9dd3ff11fb3d48b032c84f3e31af9163
+package_update: true
+package_upgrade: true
+
+groups:
+  - docker
+
+system_info:
+  default_user:
+    groups: [ docker ]
+
+users:
+  - default
+  - name: cityguide
+    gecos: cityguide
+    shell: /bin/bash
+    primary_group: users
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: admin, docker
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIUI5rha2ariscg4OLDeVtux7Iwai9MMqtz5G2LXXmMs crismar.mejia@gmail.com
+
+
+packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - unattended-upgrades
+
+runcmd:
+  - mkdir -p /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  - systemctl enable docker
+  - systemctl start docker
+
+final_message: "The system is finally up, after $UPTIME seconds"
+
+#cloud-config
+#groups:
+#  - ubuntu: [root,sys]
+#  - cityguide
+#users:
+#  - default
+#  - name: cityguide
+#    gecos: cityguide
+#    shell: /bin/bash
+#    primary_group: cityguide
+#    sudo: ALL=(ALL) NOPASSWD:ALL
+#    groups: users, admin
+#    lock_passwd: true
+#    ssh_authorized_keys:
+#      - ssh-rsa ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIUI5rha2ariscg4OLDeVtux7Iwai9MMqtz5G2LXXmMs crismar.mejia@gmail.com
+#
+#packages:
+#  - docker

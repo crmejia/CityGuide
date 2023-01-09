@@ -1,0 +1,7 @@
+{
+    email   email@email.com
+}
+
+cityguide.crismar.me {
+    reverse_proxy http://cityguide:8080
+}
