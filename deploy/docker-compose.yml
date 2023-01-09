@@ -1,0 +1,34 @@
+services:
+  caddy:
+    image: caddy:2.6.2-alpine
+    restart: unless-stopped
+    hostname: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - caddy
+    volumes:
+      - $PWD/Caddyfile:/etc/caddy/Caddyfile
+      - $PWD/site:/srv
+      - caddy_data:/data
+      - caddy_config:/config
+
+  cityguide:
+    image: crmejia/cityguide:latest
+    restart: always
+    hostname: cityguide
+    ports:
+      - "8080:8080"
+    networks:
+      - caddy
+    volumes:
+      - cityguide-db:/root
+
+volumes:
+  caddy_data:
+  caddy_config:
+  cityguide-db:
+
+networks:
+  caddy:
