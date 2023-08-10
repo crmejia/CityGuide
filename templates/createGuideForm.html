@@ -1,15 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Create Guide</title>
-   <style>
-       .error {
-           color: red;
-       }
-   </style>
-</head>
-<body>
+{{define "title"}}Create Guide{{end}}
+{{define "body"}}
 <h1>Create New Guide</h1>
 <div id="errors">
     {{range .Errors}}
@@ -30,5 +20,4 @@
 <div>
     <a href="/">cancel</a>
 </div>
-</body>
-</html>
+{{end}}

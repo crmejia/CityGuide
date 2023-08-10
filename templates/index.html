@@ -1,27 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <title>City Guide</title>
-
-    <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-        }
-        table, th, td {
-            width: 90%;
-            border: 0.5px solid black;
-            table-layout: auto;
-            white-space: nowrap;
-        }
-
-    </style>
-</head>
-<body>
-    <div id="title"><h1>City Guide</h1></div>
+{{define "title"}}All guides{{end}}
+{{define "body"}}
     <table id="guideList">
         <tr>
             <th>Name</th>
@@ -38,5 +16,4 @@
     <div>
         <a href="/guide/create">Create New Guide</a>
     </div>
-</body>
-</html>
+{{end}}

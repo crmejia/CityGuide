@@ -16,7 +16,8 @@ import (
 type Server struct {
 	store store
 	*http.Server
-	output io.Writer
+	output           io.Writer
+	templateRegistry *templateRegistry
 }
 
 func NewServer(address string, store store, output io.Writer) (Server, error) {
@@ -35,16 +36,18 @@ func NewServer(address string, store store, output io.Writer) (Server, error) {
 		output: output,
 	}
 
+	server.templateRegistry = templateRoutes()
 	server.Handler = server.routes()
 	return server, nil
 }
 
-//go:embed templates
-var fs embed.FS
-
 func (s *Server) HandleIndex() http.HandlerFunc {
+	//tmpls := []string{"templates/base.html", "templates/index.html"}
 	return func(w http.ResponseWriter, r *http.Request) {
-		render(w, r, "templates/index.html", s.store.GetAllGuides())
+		err := s.templateRegistry.render(w, indexTemplate, s.store.GetAllGuides())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -69,14 +72,20 @@ func (s *Server) HandleGuide() http.HandlerFunc {
 		}
 		g.Pois = s.store.GetAllPois(id)
 
-		render(w, r, "templates/guide.html", g)
+		err = s.templateRegistry.render(w, guideTemplate, g)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
 func (s *Server) HandleCreateGuide() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			render(w, r, "templates/createGuide.html", nil)
+			err := s.templateRegistry.render(w, createGuideFormTemplate, nil)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 			return
 		}
 		//http.MethodPost
@@ -90,7 +99,10 @@ func (s *Server) HandleCreateGuide() http.HandlerFunc {
 		if err != nil {
 			guideForm.Errors = append(guideForm.Errors, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
-			render(w, r, "templates/createGuide.html", guideForm)
+			err := s.templateRegistry.render(w, createGuideFormTemplate, guideForm.Errors)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 			return
 		}
 		gURL := fmt.Sprintf("/guide/%d", g.Id)
@@ -124,7 +136,10 @@ func (s *Server) HandleCreatePoi() http.HandlerFunc {
 			Longitude:   r.PostFormValue("longitude"),
 		}
 		if r.Method == http.MethodGet {
-			render(w, r, "templates/createPoi.html", poiForm)
+			err := s.templateRegistry.render(w, createPoiFormTemplate, poiForm)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 			return
 		}
 
@@ -132,7 +147,10 @@ func (s *Server) HandleCreatePoi() http.HandlerFunc {
 		if err != nil {
 			poiForm.Errors = append(poiForm.Errors, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
-			render(w, r, "templates/createPoi.html", poiForm)
+			err := s.templateRegistry.render(w, createPoiFormTemplate, poiForm)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 			return
 		}
 
@@ -144,7 +162,10 @@ func (s *Server) HandleCreatePoi() http.HandlerFunc {
 func (s *Server) HandleCreateUser() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			render(w, r, "templates/createUser.html", nil)
+			err := s.templateRegistry.render(w, createUserFormTemplate, nil)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 			return
 		}
 		//http.MethodPost
@@ -158,7 +179,10 @@ func (s *Server) HandleCreateUser() http.HandlerFunc {
 		if err != nil {
 			userForm.Errors = append(userForm.Errors, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
-			render(w, r, "templates/createUser.html", userForm)
+			err := s.templateRegistry.render(w, createUserFormTemplate, userForm)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 			return
 		}
 		http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -208,15 +232,42 @@ func (s *Server) routes() http.Handler {
 	return router
 }
 
-func render(w http.ResponseWriter, r *http.Request, templateFile string, data any) {
-	tmpl, err := template.ParseFS(fs, templateFile)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+func templateRoutes() *templateRegistry {
+	templates := map[string]*template.Template{}
+
+	for _, templateName := range []string{indexTemplate, guideTemplate, createGuideFormTemplate, createPoiFormTemplate, createUserFormTemplate} {
+		templates[templateName] = template.Must(template.ParseFS(fs, templatesDir+templateName, templatesDir+baseTemplate))
 	}
-	err = tmpl.Execute(w, data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+
+	return &templateRegistry{templates: templates}
+
 }
+
+//go:embed templates
+var fs embed.FS
+
+type templateRegistry struct {
+	templates map[string]*template.Template
+}
+
+// w can be io.Writer or http.ResponseWriter. Keep it io to make sure we don't do http things here
+func (t *templateRegistry) render(w io.Writer, templateFile string, data any) error {
+	//tmpl, err := template.ParseFS(fs, templateFile)
+	//err := tmpl.ExecuteTemplate(w,templateFile,data)
+	tmpl, ok := t.templates[templateFile]
+	if ok {
+		return tmpl.ExecuteTemplate(w, baseTemplate, data)
+	}
+	err := errors.New("Template not found ->" + templateFile)
+	return err
+}
+
+const (
+	templatesDir            = "templates/"
+	baseTemplate            = "base.html"
+	indexTemplate           = "index.html"
+	guideTemplate           = "guide.html"
+	createUserFormTemplate  = "createUserForm.html"
+	createGuideFormTemplate = "createGuideForm.html"
+	createPoiFormTemplate   = "createPoiForm.html"
+)

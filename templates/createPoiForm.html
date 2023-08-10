@@ -1,15 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Add POI</title>
-   <style>
-       .error {
-           color: red;
-       }
-   </style>
-</head>
-<body>
+{{define "title"}}Create POI{{end}}
+{{define "body"}}
     <h1>Add Point of Interest to {{.GuideName}}</h1>
     <div id="errors">
         {{range .Errors}}
@@ -32,5 +22,4 @@
     <div>
         <a href="/guide/{{.GuideID}}">cancel</a>
     </div>
-</body>
-</html>
+{{end}}
