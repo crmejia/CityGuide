@@ -1,4 +1,4 @@
-{{define "title"}}Create Guide{{end}}
+{{define "title"}}Create New Guide{{end}}
 {{define "body"}}
 <div class="columns">
     <div class="column">
@@ -7,7 +7,7 @@
             <p class="message-body"> {{ . }}</p>
             {{end}}
         </article>
-        <form class="form" action="/guide/create/" method="post">
+        <form class="form" action="/guide/create" method="post">
             <fieldset>
                 <legend>Guide Values</legend>
                 <div class="field">
@@ -45,7 +45,7 @@
             </fieldset>
         </form>
         <div>
-            <a href="/">cancel</a>
+            <a href="/guides">cancel</a>
         </div>
     </div>
 </div>

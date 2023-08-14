@@ -4,13 +4,13 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"github.com/gorilla/mux"
 	"github.com/mitchellh/go-homedir"
 	"html/template"
 	"io"
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 )
 
 type Server struct {
@@ -37,12 +37,17 @@ func NewServer(address string, store store, output io.Writer) (Server, error) {
 	}
 
 	server.templateRegistry = templateRoutes()
-	server.Handler = server.routes()
+	server.Handler = server.Routes()
 	return server, nil
 }
 
-func (s *Server) HandleIndex() http.HandlerFunc {
-	//tmpls := []string{"templates/base.html", "templates/index.html"}
+func HandleIndex() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "guides", http.StatusFound)
+	}
+}
+
+func (s *Server) HandleGuides() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := s.templateRegistry.render(w, indexTemplate, s.store.GetAllGuides())
 		if err != nil {
@@ -53,13 +58,12 @@ func (s *Server) HandleIndex() http.HandlerFunc {
 
 func (s *Server) HandleGuide() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		p := strings.Split(r.URL.Path, "/")
-		if len(p) < 3 {
+		guideID := mux.Vars(r)["id"]
+		if guideID == "" {
 			http.Error(w, "no guideid provided", http.StatusBadRequest)
 			return
 		}
 
-		guideID := p[2]
 		id, err := strconv.ParseInt(guideID, 10, 64)
 		if err != nil {
 			http.Error(w, "not able to parse guide ID", http.StatusBadRequest)
@@ -79,27 +83,30 @@ func (s *Server) HandleGuide() http.HandlerFunc {
 	}
 }
 
-func (s *Server) HandleCreateGuide() http.HandlerFunc {
+func (s *Server) HandleCreateGuideGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			err := s.templateRegistry.render(w, createGuideFormTemplate, nil)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-			return
+		err := s.templateRegistry.render(w, createGuideFormTemplate, nil)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-		//http.MethodPost
+		return
+	}
+}
+
+func (s *Server) HandleCreateGuidePost() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		guideForm := guideForm{
 			Name:        r.PostFormValue("name"),
 			Description: r.PostFormValue("description"),
 			Latitude:    r.PostFormValue("latitude"),
 			Longitude:   r.PostFormValue("longitude"),
+			Errors:      []string{},
 		}
 		g, err := s.store.CreateGuide(guideForm.Name, GuideWithValidStringCoordinates(guideForm.Latitude, guideForm.Longitude), GuideWithDescription(guideForm.Description))
 		if err != nil {
 			guideForm.Errors = append(guideForm.Errors, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
-			err := s.templateRegistry.render(w, createGuideFormTemplate, guideForm.Errors)
+			err := s.templateRegistry.render(w, createGuideFormTemplate, guideForm)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
@@ -108,20 +115,22 @@ func (s *Server) HandleCreateGuide() http.HandlerFunc {
 		gURL := fmt.Sprintf("/guide/%d", g.Id)
 		http.Redirect(w, r, gURL, http.StatusSeeOther)
 	}
+
 }
 
-func (s *Server) HandleCreatePoi() http.HandlerFunc {
+func (s *Server) HandleCreatePoiGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		p := strings.Split(r.URL.Path, "/")
-		if len(p) < 5 {
+		guideID := mux.Vars(r)["id"]
+		if guideID == "" {
 			http.Error(w, "no guideid provided", http.StatusBadRequest)
 			return
 		}
-		guideID := p[4]
+
 		gid, err := strconv.ParseInt(guideID, 10, 64)
 		if err != nil {
 			http.Error(w, "please provide valid guide Id", http.StatusBadRequest)
 		}
+
 		g, err := s.store.GetGuide(gid)
 		if err != nil {
 			http.Error(w, "guide not found", http.StatusNotFound)
@@ -135,14 +144,41 @@ func (s *Server) HandleCreatePoi() http.HandlerFunc {
 			Latitude:    r.PostFormValue("latitude"),
 			Longitude:   r.PostFormValue("longitude"),
 		}
-		if r.Method == http.MethodGet {
-			err := s.templateRegistry.render(w, createPoiFormTemplate, poiForm)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
+
+		err = s.templateRegistry.render(w, createPoiFormTemplate, poiForm)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+}
+
+func (s *Server) HandleCreatePoiPost() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		guideID := mux.Vars(r)["id"]
+		if guideID == "" {
+			http.Error(w, "no guideid provided", http.StatusBadRequest)
 			return
 		}
 
+		gid, err := strconv.ParseInt(guideID, 10, 64)
+		if err != nil {
+			http.Error(w, "please provide valid guide Id", http.StatusBadRequest)
+		}
+
+		g, err := s.store.GetGuide(gid)
+		if err != nil {
+			http.Error(w, "guide not found", http.StatusNotFound)
+			return
+		}
+		poiForm := poiForm{
+			GuideID:     gid,
+			GuideName:   g.Name,
+			Name:        r.PostFormValue("name"),
+			Description: r.PostFormValue("description"),
+			Latitude:    r.PostFormValue("latitude"),
+			Longitude:   r.PostFormValue("longitude"),
+		}
 		_, err = s.store.CreatePoi(poiForm.Name, gid, PoiWithValidStringCoordinates(poiForm.Latitude, poiForm.Longitude), PoiWithDescription(poiForm.Description))
 		if err != nil {
 			poiForm.Errors = append(poiForm.Errors, err.Error())
@@ -221,14 +257,16 @@ func RunServer(output io.Writer) {
 	}
 	s.Run()
 }
-func (s *Server) routes() http.Handler {
-	router := http.NewServeMux()
-	router.HandleFunc("/", s.HandleIndex())
-	router.HandleFunc("/guide/", s.HandleGuide())
-	router.HandleFunc("/guide/create/", s.HandleCreateGuide())
-	router.HandleFunc("/guide/poi/create/", s.HandleCreatePoi())
-	router.HandleFunc("/user/signup/", s.HandleCreateUser())
-
+func (s *Server) Routes() http.Handler {
+	router := mux.NewRouter()
+	router.HandleFunc("/guides", s.HandleGuides())
+	router.HandleFunc("/guide/create", s.HandleCreateGuideGet()).Methods(http.MethodGet)
+	router.HandleFunc("/guide/create", s.HandleCreateGuidePost()).Methods(http.MethodPost)
+	router.HandleFunc("/guide/{id}", s.HandleGuide())
+	router.HandleFunc("/guide/poi/create/{id}", s.HandleCreatePoiGet()).Methods(http.MethodGet)
+	router.HandleFunc("/guide/poi/create/{id}", s.HandleCreatePoiPost()).Methods(http.MethodPost)
+	router.HandleFunc("/user/signup", s.HandleCreateUser())
+	router.HandleFunc("/", HandleIndex())
 	return router
 }
 
