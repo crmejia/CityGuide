@@ -1,19 +1,41 @@
 {{define "title"}}All guides{{end}}
 {{define "body"}}
-    <table id="guideList" class="table">
-        <tr>
-            <th>Name</th>
-            <th>Description</th>
-        </tr>
-        {{range .}}
-        <tr>
-            <td><a href="/guide/{{.Id}}">{{.Name}}</td>
-            <td>{{.Description}}</td>
-        </tr>
-        {{end}}
-        </ul>
-    </table>
-    <div>
-        <a class="button" href="/guide/create">Create New Guide</a>
-    </div>
+<div>
+    <label class="label" for="search">Search Guides:</label>
+<!--    <span class="htmx-indicator">-->
+<!--    <img src="/img/bars.svg"/> Searching...-->
+<!--   </span>-->
+    <input id="search" class="input" type="search"
+           name="search" placeholder="Begin Typing To Search Users..."
+           hx-post="/search"
+           hx-trigger="keyup changed delay:500ms, search"
+           hx-target="#search-results"
+           hx-indicator=".htmx-indicator">
+
+</div>
+
+<table id="guideList" class="table is-bordered is-hoverable">
+    <thead>
+    <tr>
+        <th>Name</th>
+        <th>Description</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    {{range .}}
+    <tr>
+        <td><a href="/guide/{{.Id}}">{{.Name}}</td>
+        <td>{{.Description}}</td>
+        <td>
+            <a href="/guides/{{.Id}}/edit">Edit</a>
+            <a href="/guides/{{.Id}}/delete">Delete</a>
+        </td>
+    </tr>
+    {{end}}
+    </tbody>
+</table>
+<div>
+    <a class="button" href="/guide/create">Create New Guide</a>
+</div>
 {{end}}

@@ -1,41 +1,50 @@
 {{define "title"}}{{.Name}}{{end}}
-{{define "body"}}
-    <p class="content"> {{.Description}}</p>
-    <div id="map" style="width: 600px; height: 400px;"></div><br>
 
+{{define "mapscript"}}
 <!-- ---------------------------->
 <!--TODO template this script-->
 <!-- ---------------------------->
-    <script>
-        let map = L.map('map').setView([{{.Coordinate.Latitude}}, {{.Coordinate.Longitude}}], 15);
+<script>
+    let map = L.map('map').setView([{{.Coordinate.Latitude}}, {{.Coordinate.Longitude}}], 15);
 
-        let tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        }).addTo(map);
+    let tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
 
-        let pois = {{.Pois}}
-        pois.forEach( function (poi) {
-            let marker = L.marker([poi.Coordinate.Latitude,poi.Coordinate.Longitude]).addTo(map);
-            marker.bindPopup(poi.Name + " TBD description")
-        })
-    </script>
-    <table class="table">
-        <tr>
-            <th>Name</th>
-            <th>Description</th>
-        </tr>
-        {{range .Pois}}
-        <tr>
-            <td> {{.Name}}</td>
-            <td>{{.Description}}</td>
-        </tr>
-        {{end}}
-    </table>
-    <div>
-        <a href="/guide/poi/create/{{.Id}}"> Add Poi</a>
-        <a href="/guides">back</a>
-    </div>
+    let pois = {{.Pois}}
+    pois.forEach( function (poi) {
+        let marker = L.marker([poi.Coordinate.Latitude,poi.Coordinate.Longitude]).addTo(map);
+        marker.bindPopup(poi.Name + " TBD description")
+    })
+</script>
+{{end}}
+
+{{define "body"}}
+<p class="content"> {{.Description}}</p>
+<div id="map" style="width: 600px; height: 400px;">
+    {{template "mapscript" .}}
+</div>
+<table class="table">
+    <thead>
+    <tr>
+        <th>Name</th>
+        <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{range .Pois}}
+    <tr>
+        <td> {{.Name}}</td>
+        <td>{{.Description}}</td>
+    </tr>
+    {{end}}
+    </tbody>
+</table>
+<div>
+    <a href="/guide/poi/create/{{.Id}}"> Add Poi</a>
+    <a href="/guides">back</a>
+</div>
 </body>
 </html>
 {{end}}
