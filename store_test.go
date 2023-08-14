@@ -157,6 +157,21 @@ func TestOpenSQLiteStoreErrorsOnEmptyDBSource(t *testing.T) {
 	}
 }
 
+func TestSQLiteStore_GetReturnsErrorOnNoGuide(t *testing.T) {
+	t.Parallel()
+	tempDB := t.TempDir() + "geterrors.store"
+	sqLiteStore, err := guide.OpenSQLiteStore(tempDB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := sqLiteStore.GetGuide(99)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.Id != 0 {
+		t.Fatal("id should be 0")
+	}
+}
 func TestSQLiteStore_GuideRoundtripCreateUpdateGet(t *testing.T) {
 	t.Parallel()
 	tempDB := t.TempDir() + "guideRoundtrip.store"

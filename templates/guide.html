@@ -21,6 +21,11 @@
 {{end}}
 
 {{define "body"}}
+<a class="button medium" href="/guide/{{.Id}}/edit">Edit</a>
+<button id="delete-btn" class="button is-danger medium" hx-delete="/guide/{{.Id}}" hx-target="body" hx-push-url="true"
+        hx-confirm="Are you sure you want to delete this guide?">
+    Delete Guide
+</button>
 <p class="content"> {{.Description}}</p>
 <div id="map" style="width: 600px; height: 400px;">
     {{template "mapscript" .}}

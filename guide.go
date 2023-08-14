@@ -140,6 +140,7 @@ func newPointOfInterest(name string, guideID int64, opts ...poiOption) (pointOfI
 }
 
 type guideForm struct {
+	GuideId                                int64
 	Name, Description, Latitude, Longitude string
 	Errors                                 []string
 }

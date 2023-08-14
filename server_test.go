@@ -348,6 +348,48 @@ func TestCreateGuideHandlerPostFormErrors(t *testing.T) {
 	}
 }
 
+func TestEditGuideRoute(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		path               string
+		expectedStatusCode int
+	}{
+		{"/guide/1/edit", http.StatusOK}, //should be StatusFound 302 but httptest.Client follows redirects
+		{"/guide/2/edit", http.StatusNotFound},
+	}
+
+	store := guide.OpenMemoryStore()
+	_, err := store.CreateGuide("San Cristobal", guide.GuideWithValidStringCoordinates("10", "10"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	freePort, err := freeport.GetFreePort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	address := fmt.Sprintf("localhost:%d", freePort)
+	server, err := guide.NewServer(address, &store, os.Stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ts := httptest.NewServer(server.Routes())
+	defer ts.Close()
+
+	client := ts.Client()
+	for _, tc := range testCases {
+		res, err := client.Get(ts.URL + tc.path)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if res.StatusCode != tc.expectedStatusCode {
+			t.Errorf("for path %s want status %d OK, got %d", tc.path, tc.expectedStatusCode, res.StatusCode)
+		}
+	}
+}
 func TestCreatePoiHandlerGetRendersForm(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()

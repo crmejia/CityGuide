@@ -117,6 +117,105 @@ func (s *Server) HandleCreateGuidePost() http.HandlerFunc {
 	}
 
 }
+func (s *Server) HandleEditGuideGet() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		guideID := mux.Vars(r)["id"]
+		if guideID == "" {
+			http.Error(w, "no guideid provided", http.StatusBadRequest)
+			return
+		}
+
+		id, err := strconv.ParseInt(guideID, 10, 64)
+		if err != nil {
+			http.Error(w, "not able to parse guide ID", http.StatusBadRequest)
+			return
+		}
+		g, err := s.store.GetGuide(id)
+		if err != nil {
+			http.Error(w, "guide Not Found", http.StatusNotFound)
+			return
+		}
+		if g.Id == 0 {
+			http.Error(w, "guide not found", http.StatusNotFound)
+			return
+		}
+
+		guideForm := guideForm{
+			GuideId:     g.Id,
+			Name:        g.Name,
+			Description: g.Description,
+			Latitude:    fmt.Sprintf("%f", g.Coordinate.Latitude),
+			Longitude:   fmt.Sprintf("%f", g.Coordinate.Longitude),
+			Errors:      []string{},
+		}
+		err = s.templateRegistry.render(w, editGuideFormTemplate, guideForm)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+}
+
+func (s *Server) HandleEditGuidePost() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		guideID := mux.Vars(r)["id"]
+		if guideID == "" {
+			http.Error(w, "no guideid provided", http.StatusBadRequest)
+			return
+		}
+		id, err := strconv.ParseInt(guideID, 10, 64)
+		if err != nil {
+			http.Error(w, "not able to parse guide ID", http.StatusBadRequest)
+			return
+		}
+		g, err := s.store.GetGuide(id)
+		if err != nil {
+			http.Error(w, "guide Not Found", http.StatusNotFound)
+			return
+		}
+		if g.Id == 0 {
+			http.Error(w, "guide not found", http.StatusNotFound)
+			return
+		}
+
+		guideForm := guideForm{
+			Name:        r.PostFormValue("name"),
+			Description: r.PostFormValue("description"),
+			Latitude:    r.PostFormValue("latitude"),
+			Longitude:   r.PostFormValue("longitude"),
+			Errors:      []string{},
+		}
+
+		coordinates, err := parseCoordinates(guideForm.Latitude, guideForm.Longitude)
+		if err != nil {
+			guideForm.Errors = append(guideForm.Errors, err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			err := s.templateRegistry.render(w, createGuideFormTemplate, guideForm)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		g.Name = guideForm.Name
+		g.Description = guideForm.Description
+		g.Coordinate = coordinates
+
+		err = s.store.UpdateGuide(&g)
+		if err != nil {
+			guideForm.Errors = append(guideForm.Errors, err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			err := s.templateRegistry.render(w, createGuideFormTemplate, guideForm)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+		gURL := fmt.Sprintf("/guide/%d", g.Id)
+		http.Redirect(w, r, gURL, http.StatusSeeOther)
+	}
+
+}
 
 func (s *Server) HandleCreatePoiGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -263,6 +362,10 @@ func (s *Server) Routes() http.Handler {
 	router.HandleFunc("/guide/create", s.HandleCreateGuideGet()).Methods(http.MethodGet)
 	router.HandleFunc("/guide/create", s.HandleCreateGuidePost()).Methods(http.MethodPost)
 	router.HandleFunc("/guide/{id}", s.HandleGuide())
+	router.HandleFunc("/guide/{id}/edit", s.HandleEditGuideGet()).Methods(http.MethodGet)
+	router.HandleFunc("/guide/{id}/edit", s.HandleEditGuidePost()).Methods(http.MethodPost)
+
+	//POI *-> Guide
 	router.HandleFunc("/guide/poi/create/{id}", s.HandleCreatePoiGet()).Methods(http.MethodGet)
 	router.HandleFunc("/guide/poi/create/{id}", s.HandleCreatePoiPost()).Methods(http.MethodPost)
 	router.HandleFunc("/user/signup", s.HandleCreateUser())
@@ -273,7 +376,8 @@ func (s *Server) Routes() http.Handler {
 func templateRoutes() *templateRegistry {
 	templates := map[string]*template.Template{}
 
-	for _, templateName := range []string{indexTemplate, guideTemplate, createGuideFormTemplate, createPoiFormTemplate, createUserFormTemplate} {
+	//todo iterate over template dir
+	for _, templateName := range []string{indexTemplate, guideTemplate, createGuideFormTemplate, editGuideFormTemplate, createPoiFormTemplate, createUserFormTemplate} {
 		templates[templateName] = template.Must(template.ParseFS(fs, templatesDir+templateName, templatesDir+baseTemplate))
 	}
 
@@ -305,7 +409,8 @@ const (
 	baseTemplate            = "base.html"
 	indexTemplate           = "index.html"
 	guideTemplate           = "guide.html"
-	createUserFormTemplate  = "createUserForm.html"
 	createGuideFormTemplate = "createGuideForm.html"
+	editGuideFormTemplate   = "editGuideForm.html"
 	createPoiFormTemplate   = "createPoiForm.html"
+	createUserFormTemplate  = "createUserForm.html"
 )

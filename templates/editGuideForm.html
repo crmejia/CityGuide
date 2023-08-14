@@ -1,0 +1,58 @@
+{{define "title"}}Edit Guide{{end}}
+{{define "body"}}
+<div class="columns">
+    <div class="column">
+        <article class="message is-danger" id="errors">
+            {{if .Errors}}
+                {{range .Errors}}
+                    <p class="message-body"> {{ . }}</p>
+                {{end}}
+            {{end}}
+        </article>
+        <form class="form" action="/guide/{{.GuideId}}/edit" method="post">
+            <fieldset>
+                <legend>Guide Values</legend>
+                <div class="field">
+                    <label class="label" for="name">Guide name:</label>
+                    <div class="control">
+                        <input class="input" type="text" id="name" name="name" value="{{.Name}}">
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="label" for="description">Description:</label>
+                    <div class="control">
+                        <textarea class="textarea is-primary" id="description" name="description">{{.Description}}</textarea>
+                    </div>
+
+                    </div>
+                    <div class="field">
+                        <label class="label" for="latitude">Latitude:</label>
+                        <div class="control">
+                            <input class="input" type="text" id="latitude" name="latitude" value="{{.Latitude}}">
+                        </div>
+
+                    </div>
+                    <div class="field">
+                        <label class="label" for="longitude">Longitude:</label>
+                        <div class="control">
+                            <input class="input" type="text" id="longitude" name="longitude" value="{{.Longitude}}">
+                        </div>
+                    </div>
+                    <div class="field">
+                        <div class="control">
+                            <button class="button">Save</button>
+                        </div>
+                    </div>
+            </fieldset>
+        </form>
+        <button id="delete-btn" class="button is-danger" hx-delete="/guide/{{.GuideId}}" hx-target="body" hx-push-url="true"
+                hx-confirm="Are you sure you want to delete this guide?">
+            Delete Guide
+        </button>
+        <div>
+            <a href="/guides">cancel</a>
+        </div>
+    </div>
+</div>
+{{end}}

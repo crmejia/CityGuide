@@ -21,6 +21,16 @@ type store interface {
 	GetAllGuides() []guide
 	GetAllPois(int64) []pointOfInterest
 }
+
+// todo should be pointers and Posgres
+//
+//	type Storage interface {
+//		CreateMatch(*match) error
+//		//DeleteMatch(int)error
+//		UpdateMatch(*match) error
+//		GetMatchByID(int64) (*match, error)
+//		AddPointsByID(int64, int, int) (*match, error)
+//	}
 type memoryStore struct {
 	Guides       map[int64]guide
 	Pois         map[int64]pointOfInterest
