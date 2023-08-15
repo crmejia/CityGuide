@@ -14,13 +14,13 @@ import (
 )
 
 type Server struct {
-	store store
+	store Storage
 	*http.Server
 	output           io.Writer
 	templateRegistry *templateRegistry
 }
 
-func NewServer(address string, store store, output io.Writer) (Server, error) {
+func NewServer(address string, store Storage, output io.Writer) (Server, error) {
 	if address == "" {
 		return Server{}, errors.New("server address cannot be empty")
 	}
@@ -69,10 +69,15 @@ func (s *Server) HandleGuide() http.HandlerFunc {
 			http.Error(w, "not able to parse guide ID", http.StatusBadRequest)
 			return
 		}
-		g, err := s.store.GetGuide(id)
+		g, err := s.store.GetGuidebyID(id)
 		if err != nil {
+			http.Error(w, "guide Not Found", http.StatusInternalServerError)
+			return
+		}
+		if g == nil {
 			http.Error(w, "guide Not Found", http.StatusNotFound)
 			return
+
 		}
 		g.Pois = s.store.GetAllPois(id)
 
@@ -102,7 +107,17 @@ func (s *Server) HandleCreateGuidePost() http.HandlerFunc {
 			Longitude:   r.PostFormValue("longitude"),
 			Errors:      []string{},
 		}
-		g, err := s.store.CreateGuide(guideForm.Name, WithValidStringCoordinates(guideForm.Latitude, guideForm.Longitude), WithDescription(guideForm.Description))
+		g, err := NewGuide(guideForm.Name, WithValidStringCoordinates(guideForm.Latitude, guideForm.Longitude), WithDescription(guideForm.Description))
+		if err != nil {
+			guideForm.Errors = append(guideForm.Errors, err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			err := s.templateRegistry.render(w, createGuideFormTemplate, guideForm)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+		err = s.store.CreateGuide(&g)
 		if err != nil {
 			guideForm.Errors = append(guideForm.Errors, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
@@ -130,12 +145,12 @@ func (s *Server) HandleEditGuideGet() http.HandlerFunc {
 			http.Error(w, "not able to parse guide ID", http.StatusBadRequest)
 			return
 		}
-		g, err := s.store.GetGuide(id)
+		g, err := s.store.GetGuidebyID(id)
 		if err != nil {
-			http.Error(w, "guide Not Found", http.StatusNotFound)
+			http.Error(w, "db error", http.StatusNotFound)
 			return
 		}
-		if g.Id == 0 {
+		if g == nil {
 			http.Error(w, "guide not found", http.StatusNotFound)
 			return
 		}
@@ -168,7 +183,7 @@ func (s *Server) HandleEditGuidePost() http.HandlerFunc {
 			http.Error(w, "not able to parse guide ID", http.StatusBadRequest)
 			return
 		}
-		g, err := s.store.GetGuide(id)
+		g, err := s.store.GetGuidebyID(id)
 		if err != nil {
 			http.Error(w, "guide Not Found", http.StatusNotFound)
 			return
@@ -201,7 +216,7 @@ func (s *Server) HandleEditGuidePost() http.HandlerFunc {
 		g.Description = guideForm.Description
 		g.Coordinate = coordinates
 
-		err = s.store.UpdateGuide(&g)
+		err = s.store.UpdateGuide(g)
 		if err != nil {
 			guideForm.Errors = append(guideForm.Errors, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
@@ -230,7 +245,7 @@ func (s *Server) HandleCreatePoiGet() http.HandlerFunc {
 			http.Error(w, "please provide valid guide Id", http.StatusBadRequest)
 		}
 
-		g, err := s.store.GetGuide(gid)
+		g, err := s.store.GetGuidebyID(gid)
 		if err != nil {
 			http.Error(w, "guide not found", http.StatusNotFound)
 			return
@@ -265,7 +280,7 @@ func (s *Server) HandleCreatePoiPost() http.HandlerFunc {
 			http.Error(w, "please provide valid guide Id", http.StatusBadRequest)
 		}
 
-		g, err := s.store.GetGuide(gid)
+		g, err := s.store.GetGuidebyID(gid)
 		if err != nil {
 			http.Error(w, "guide not found", http.StatusNotFound)
 			return
@@ -314,12 +329,12 @@ func RunServer(output io.Writer) {
 		fmt.Fprintln(output, err)
 		return
 	}
-	store, err := OpenSQLiteStore(homeDir + "/city_guide.db")
+	storage, err := OpenSQLiteStorage(homeDir + "/city_guide.db")
 	if err != nil {
 		fmt.Fprintln(output, err)
 		return
 	}
-	s, err := NewServer(address, &store, output)
+	s, err := NewServer(address, storage, output)
 	if err != nil {
 		fmt.Fprintln(output, err)
 		return
@@ -335,7 +350,7 @@ func (s *Server) Routes() http.Handler {
 	router.HandleFunc("/guide/{id}/edit", s.HandleEditGuideGet()).Methods(http.MethodGet)
 	router.HandleFunc("/guide/{id}/edit", s.HandleEditGuidePost()).Methods(http.MethodPost)
 
-	//POI *-> Guide
+	//POI *-> guide
 	router.HandleFunc("/guide/poi/create/{id}", s.HandleCreatePoiGet()).Methods(http.MethodGet)
 	router.HandleFunc("/guide/poi/create/{id}", s.HandleCreatePoiPost()).Methods(http.MethodPost)
 	router.HandleFunc("/", HandleIndex())

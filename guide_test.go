@@ -28,3 +28,5 @@ func TestGuideWithValidStringCoordinatesErrorsOnInvalidCoordinates(t *testing.T)
 		}
 	}
 }
+
+//todo test newguide constructore name cannot be empty

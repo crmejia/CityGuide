@@ -50,7 +50,7 @@ type guide struct {
 	Coordinate  coordinate
 	Pois        []pointOfInterest
 
-	// Guide.mapArea/coordinates}
+	// guide.mapArea/coordinates}
 }
 
 type coordinate struct {
@@ -94,7 +94,7 @@ func parseCoordinates(latitude, longitude string) (coordinate, error) {
 
 type guideOption func(*guide) error
 
-func newGuide(name string, opts ...guideOption) (guide, error) {
+func NewGuide(name string, opts ...guideOption) (guide, error) {
 	if name == "" {
 		return guide{}, errors.New("guide name cannot be empty")
 	}
@@ -113,7 +113,7 @@ func newGuide(name string, opts ...guideOption) (guide, error) {
 }
 
 // pointOfInterest represents a geo location in a map. Hence,
-// the relationship is one-to-many, Guide to points of Interests
+// the relationship is one-to-many, guide to points of Interests
 // there is no guarantee that a poi is bounded within a maps coordinates. See IsBounded()
 type pointOfInterest struct {
 	Id          int64
@@ -123,7 +123,7 @@ type pointOfInterest struct {
 	Description string
 }
 
-// IsBounded determines if a pointOfInterest is bounded within Guide.mapArea/coordinates
+// IsBounded determines if a pointOfInterest is bounded within guide.mapArea/coordinates
 func (p pointOfInterest) IsBounded() bool {
 	return false
 }

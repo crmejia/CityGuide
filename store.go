@@ -6,9 +6,9 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type store interface {
-	GetGuide(int64) (guide, error)
-	CreateGuide(string, ...guideOption) (*guide, error)
+type Storage interface {
+	CreateGuide(*guide) error
+	GetGuidebyID(int64) (*guide, error)
 	UpdateGuide(*guide) error
 	GetAllGuides() []guide
 
@@ -57,7 +57,7 @@ func (s *memoryStore) GetGuide(id int64) (guide, error) {
 }
 
 func (s *memoryStore) CreateGuide(name string, opts ...guideOption) (*guide, error) {
-	g, err := newGuide(name, opts...)
+	g, err := NewGuide(name, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func (s *memoryStore) GetAllPois(guideId int64) []pointOfInterest {
 	}
 	//todo why is this a warning
 	//Empty slice declaration using a literal
-	pois := []pointOfInterest{}
+	var pois []pointOfInterest
 	for _, poi := range s.Pois {
 		if poi.GuideID == guideId {
 			pois = append(pois, poi)
@@ -135,97 +135,88 @@ type sqliteStore struct {
 	db *sql.DB
 }
 
-func OpenSQLiteStore(dbPath string) (sqliteStore, error) {
+func OpenSQLiteStorage(dbPath string) (Storage, error) {
 	if dbPath == "" {
-		return sqliteStore{}, errors.New("db source cannot be empty")
+		return &sqliteStore{}, errors.New("db source cannot be empty")
 	}
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
-		return sqliteStore{}, err
+		return &sqliteStore{}, err
 	}
 
 	//actually now that I think about it. Is this the migration part of a webapp?
 	for _, stmt := range []string{pragmaWALEnabled, pragma500BusyTimeout, pragmaForeignKeysON} {
 		_, err = db.Exec(stmt, nil)
 		if err != nil {
-			return sqliteStore{}, err
+			return &sqliteStore{}, err
 		}
 	}
 
 	_, err = db.Exec(createGuideTable)
 	if err != nil {
-		return sqliteStore{}, err
+		return &sqliteStore{}, err
 	}
 
 	_, err = db.Exec(createPoiTable)
 	if err != nil {
-		return sqliteStore{}, err
+		return &sqliteStore{}, err
 	}
 
 	//leaving commented to help with the concept of migration
 	//_, err = db.Exec(createUserTable)
 	//if err != nil {
-	//	return sqliteStore{}, err
+	//	return &sqliteStore{}, err
 	//}
 
 	store := sqliteStore{
 		db: db,
 	}
-	return store, nil
+	return &store, nil
 }
 
-func (s *sqliteStore) CreateGuide(name string, opts ...guideOption) (*guide, error) {
-	g, err := newGuide(name, opts...)
-	if err != nil {
-		return nil, err
-	}
+func (s *sqliteStore) CreateGuide(guide *guide) error {
 	stmt, err := s.db.Prepare(insertGuide)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	rs, err := stmt.Exec(g.Name, g.Description, g.Coordinate.Latitude, g.Coordinate.Longitude)
+	rs, err := stmt.Exec(guide.Name, guide.Description, guide.Coordinate.Latitude, guide.Coordinate.Longitude)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	lastInsertID, err := rs.LastInsertId()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	g.Id = lastInsertID
-	return &g, nil
+	guide.Id = lastInsertID
+	return nil
 }
 
-func (s *sqliteStore) GetGuide(id int64) (guide, error) {
-	rows, err := s.db.Query(getGuide, id)
-	if err != nil {
-		return guide{}, err
-	}
-
-	g := guide{}
-
-	for rows.Next() {
-		var (
-			name        string
-			description string
-			latitude    float64
-			longitude   float64
-		)
-		err = rows.Scan(&name, &description, &latitude, &longitude)
-		if err != nil {
-			return guide{}, err
+func (s *sqliteStore) GetGuidebyID(id int64) (*guide, error) {
+	var (
+		name        string
+		description string
+		latitude    float64
+		longitude   float64
+	)
+	err := s.db.QueryRow(getGuide, id).Scan(&name, &description, &latitude, &longitude)
+	switch {
+	case err == sql.ErrNoRows:
+		return nil, nil
+	case err != nil:
+		return nil, err
+	default:
+		g := guide{
+			Id:          id,
+			Name:        name,
+			Description: description,
+			Coordinate: coordinate{
+				Latitude:  latitude,
+				Longitude: longitude,
+			},
+			Pois: nil,
 		}
-		g.Id = id
-		g.Name = name
-		g.Description = description
-		g.Coordinate = coordinate{Latitude: latitude, Longitude: longitude}
+		return &g, nil
 	}
-
-	if err = rows.Err(); err != nil {
-		return guide{}, err
-	}
-
-	return g, nil
 }
 
 func (s *sqliteStore) UpdateGuide(g *guide) error {

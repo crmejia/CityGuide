@@ -151,7 +151,7 @@ func TestMemoryStore_GetAllPois(t *testing.T) {
 
 func TestOpenSQLiteStoreErrorsOnEmptyDBSource(t *testing.T) {
 	t.Parallel()
-	_, err := guide.OpenSQLiteStore("")
+	_, err := guide.OpenSQLiteStorage("")
 	if err == nil {
 		t.Error("Want error on empty string store source")
 	}
@@ -159,40 +159,45 @@ func TestOpenSQLiteStoreErrorsOnEmptyDBSource(t *testing.T) {
 
 func TestSQLiteStore_GetReturnsErrorOnNoGuide(t *testing.T) {
 	t.Parallel()
-	tempDB := t.TempDir() + "geterrors.store"
-	sqLiteStore, err := guide.OpenSQLiteStore(tempDB)
+	tempDB := t.TempDir() + t.Name() + ".store"
+
+	sqLiteStore, err := guide.OpenSQLiteStorage(tempDB)
 	if err != nil {
 		t.Fatal(err)
 	}
-	g, err := sqLiteStore.GetGuide(99)
+	g, err := sqLiteStore.GetGuidebyID(99)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if g.Id != 0 {
-		t.Fatal("id should be 0")
+	if g != nil {
+		t.Fatal("guide should be nil")
 	}
 }
 func TestSQLiteStore_GuideRoundtripCreateUpdateGet(t *testing.T) {
 	t.Parallel()
-	tempDB := t.TempDir() + "guideRoundtrip.store"
-	sqLiteStore, err := guide.OpenSQLiteStore(tempDB)
+	tempDB := t.TempDir() + t.Name() + ".store"
+	sqLiteStore, err := guide.OpenSQLiteStorage(tempDB)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	g, err := sqLiteStore.CreateGuide("newGuide", guide.WithValidStringCoordinates("10", "10"))
+	g, err := guide.NewGuide(t.Name(), guide.WithValidStringCoordinates("10", "10"))
 	if err != nil {
 		t.Fatal(err)
 	}
+	err = sqLiteStore.CreateGuide(&g)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	want := "testGuide"
 	g.Name = want
-	//g.Id = g.Id
-	err = sqLiteStore.UpdateGuide(g)
+	err = sqLiteStore.UpdateGuide(&g)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := sqLiteStore.GetGuide(g.Id)
+	got, err := sqLiteStore.GetGuidebyID(g.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,15 +209,19 @@ func TestSQLiteStore_GuideRoundtripCreateUpdateGet(t *testing.T) {
 
 func TestSQLiteStore_GetAllGuides(t *testing.T) {
 	t.Parallel()
-	dbSource := t.TempDir() + "GetAllGuides.store"
-	sqliteStore, err := guide.OpenSQLiteStore(dbSource)
+	tempDB := t.TempDir() + t.Name() + ".store"
+	sqliteStore, err := guide.OpenSQLiteStorage(tempDB)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	want := 3
 	for i := 0; i < want; i++ {
-		_, err := sqliteStore.CreateGuide("newGuide", guide.WithValidStringCoordinates("10", "10"))
+		g, err := guide.NewGuide("newGuide", guide.WithValidStringCoordinates("10", "10"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = sqliteStore.CreateGuide(&g)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -226,13 +235,17 @@ func TestSQLiteStore_GetAllGuides(t *testing.T) {
 
 func TestSqliteStore_PoiRoundtripCreateUpdateGetPoi(t *testing.T) {
 	t.Parallel()
-	tempDB := t.TempDir() + "poiRoundtrip.store"
-	sqliteStore, err := guide.OpenSQLiteStore(tempDB)
+	tempDB := t.TempDir() + t.Name() + ".store"
+	sqliteStore, err := guide.OpenSQLiteStorage(tempDB)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	g, err := sqliteStore.CreateGuide("newGuide", guide.WithValidStringCoordinates("10", "10"))
+	g, err := guide.NewGuide("newGuide", guide.WithValidStringCoordinates("10", "10"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = sqliteStore.CreateGuide(&g)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,13 +277,14 @@ func TestSqliteStore_PoiRoundtripCreateUpdateGetPoi(t *testing.T) {
 
 func TestSQLiteStore_GetAllPois(t *testing.T) {
 	t.Parallel()
-	dbSource := t.TempDir() + "GetAllPois.store"
-	sqliteStore, err := guide.OpenSQLiteStore(dbSource)
+	tempDB := t.TempDir() + t.Name() + ".store"
+	sqliteStore, err := guide.OpenSQLiteStorage(tempDB)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	g, err := sqliteStore.CreateGuide("newGuide", guide.WithValidStringCoordinates("10", "10"))
+	g, err := guide.NewGuide("newGuide", guide.WithValidStringCoordinates("10", "10"))
+	err = sqliteStore.CreateGuide(&g)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,28 +301,35 @@ func TestSQLiteStore_GetAllPois(t *testing.T) {
 	}
 }
 
-func TestSqliteStore_GuideErrors(t *testing.T) {
-	t.Parallel()
-	tempDB := t.TempDir() + "errors.db"
-	sqliteStore, err := guide.OpenSQLiteStore(tempDB)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = sqliteStore.CreateGuide("", guide.WithValidStringCoordinates("10", "10"))
-	if err == nil {
-		t.Error("want error on empty guide name")
-	}
-	_, err = sqliteStore.CreateGuide("test", guide.WithValidStringCoordinates("1000", "10"))
-	if err == nil {
-		t.Error("want error on invalid coordinates")
-	}
-}
+// no longer enforced by the store
+//func TestSqliteStore_GuideErrors(t *testing.T) {
+//	t.Parallel()
+//	tempDB := t.TempDir() + t.Name() + ".store"
+//	sqliteStore, err := guide.OpenSQLiteStorage(tempDB)
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//
+//	g, err := guide.NewGuide("", guide.WithValidStringCoordinates("10", "10"))
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//	err = sqliteStore.CreateGuide(&g)
+//	if err == nil {
+//		t.Error("want error on empty guide name")
+//	}
+//
+//	g, err = guide.NewGuide("test", guide.WithValidStringCoordinates("1000", "10"))
+//	err = sqliteStore.CreateGuide(&g)
+//	if err == nil {
+//		t.Error("want error on invalid coordinates")
+//	}
+//}
 
 func TestSqliteStore_PoiErrors(t *testing.T) {
 	t.Parallel()
-	tempDB := t.TempDir() + "errors.db"
-	sqliteStore, err := guide.OpenSQLiteStore(tempDB)
+	tempDB := t.TempDir() + t.Name() + ".store"
+	sqliteStore, err := guide.OpenSQLiteStorage(tempDB)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -318,7 +339,12 @@ func TestSqliteStore_PoiErrors(t *testing.T) {
 		t.Error("want error on non-existing guide")
 	}
 
-	g, err := sqliteStore.CreateGuide("test", guide.WithValidStringCoordinates("10", "10"))
+	g, err := guide.NewGuide("test", guide.WithValidStringCoordinates("10", "10"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = sqliteStore.CreateGuide(&g)
 	if err != nil {
 		t.Fatal(err)
 	}
