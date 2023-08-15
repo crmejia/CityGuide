@@ -294,36 +294,6 @@ func (s *Server) HandleCreatePoiPost() http.HandlerFunc {
 	}
 }
 
-func (s *Server) HandleCreateUser() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			err := s.templateRegistry.render(w, createUserFormTemplate, nil)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-			return
-		}
-		//http.MethodPost
-		userForm := userForm{
-			Username:        r.PostFormValue("username"),
-			Password:        r.PostFormValue("password"),
-			ConfirmPassword: r.PostFormValue("confirm-password"),
-			Email:           r.PostFormValue("email"),
-		}
-		_, err := s.store.CreateUser(userForm.Username, userForm.Password, userForm.ConfirmPassword, userForm.Email)
-		if err != nil {
-			userForm.Errors = append(userForm.Errors, err.Error())
-			w.WriteHeader(http.StatusBadRequest)
-			err := s.templateRegistry.render(w, createUserFormTemplate, userForm)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-			return
-		}
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-	}
-}
-
 func (s *Server) Run() {
 	fmt.Fprintln(s.output, "starting http server")
 	err := s.ListenAndServe()
@@ -368,7 +338,6 @@ func (s *Server) Routes() http.Handler {
 	//POI *-> Guide
 	router.HandleFunc("/guide/poi/create/{id}", s.HandleCreatePoiGet()).Methods(http.MethodGet)
 	router.HandleFunc("/guide/poi/create/{id}", s.HandleCreatePoiPost()).Methods(http.MethodPost)
-	router.HandleFunc("/user/signup", s.HandleCreateUser())
 	router.HandleFunc("/", HandleIndex())
 	return router
 }
@@ -377,7 +346,7 @@ func templateRoutes() *templateRegistry {
 	templates := map[string]*template.Template{}
 
 	//todo iterate over template dir
-	for _, templateName := range []string{indexTemplate, guideTemplate, createGuideFormTemplate, editGuideFormTemplate, createPoiFormTemplate, createUserFormTemplate} {
+	for _, templateName := range []string{indexTemplate, guideTemplate, createGuideFormTemplate, editGuideFormTemplate, createPoiFormTemplate} {
 		templates[templateName] = template.Must(template.ParseFS(fs, templatesDir+templateName, templatesDir+baseTemplate))
 	}
 
@@ -412,5 +381,4 @@ const (
 	createGuideFormTemplate = "createGuideForm.html"
 	editGuideFormTemplate   = "editGuideForm.html"
 	createPoiFormTemplate   = "createPoiForm.html"
-	createUserFormTemplate  = "createUserForm.html"
 )

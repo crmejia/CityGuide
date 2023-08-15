@@ -16,9 +16,6 @@ type store interface {
 	CreatePoi(string, int64, ...poiOption) (*pointOfInterest, error)
 	UpdatePoi(*pointOfInterest) error
 	GetAllPois(int64) []pointOfInterest
-
-	GetUser(int64) (user, error)
-	CreateUser(string, string, string, string) (*user, error)
 }
 
 // todo should be pointers and Posgres
@@ -134,25 +131,6 @@ func (s *memoryStore) GetAllPois(guideId int64) []pointOfInterest {
 	return pois
 }
 
-func (s *memoryStore) CreateUser(username, password, confirmPassword, email string) (*user, error) {
-	u, err := newUser(username, password, confirmPassword, email)
-	if err != nil {
-		return nil, err
-	}
-	u.Id = s.NextUserKey
-	s.Users[u.Id] = u
-	s.NextUserKey++
-	return &u, nil
-}
-
-func (s *memoryStore) GetUser(id int64) (user, error) {
-	u, ok := s.Users[id]
-	if ok {
-		return u, nil
-	}
-	return user{}, errors.New("user not found")
-}
-
 type sqliteStore struct {
 	db *sql.DB
 }
@@ -166,6 +144,7 @@ func OpenSQLiteStore(dbPath string) (sqliteStore, error) {
 		return sqliteStore{}, err
 	}
 
+	//actually now that I think about it. Is this the migration part of a webapp?
 	for _, stmt := range []string{pragmaWALEnabled, pragma500BusyTimeout, pragmaForeignKeysON} {
 		_, err = db.Exec(stmt, nil)
 		if err != nil {
@@ -183,10 +162,11 @@ func OpenSQLiteStore(dbPath string) (sqliteStore, error) {
 		return sqliteStore{}, err
 	}
 
-	_, err = db.Exec(createUserTable)
-	if err != nil {
-		return sqliteStore{}, err
-	}
+	//leaving commented to help with the concept of migration
+	//_, err = db.Exec(createUserTable)
+	//if err != nil {
+	//	return sqliteStore{}, err
+	//}
 
 	store := sqliteStore{
 		db: db,
@@ -400,62 +380,6 @@ func (s *sqliteStore) GetAllPois(guideId int64) []pointOfInterest {
 	return pois
 }
 
-func (s *sqliteStore) CreateUser(username, password, confirmPassword, email string) (*user, error) {
-	user, err := newUser(username, password, confirmPassword, email)
-	if err != nil {
-		return nil, err
-	}
-
-	stmt, err := s.db.Prepare(insertUser)
-	if err != nil {
-		return nil, err
-	}
-
-	rs, err := stmt.Exec(user.Username, user.Password, user.Email)
-	if err != nil {
-		return nil, err
-	}
-
-	lastInsertID, err := rs.LastInsertId()
-	if err != nil {
-		return nil, err
-	}
-	user.Id = lastInsertID
-	return &user, nil
-
-}
-
-func (s *sqliteStore) GetUser(id int64) (user, error) {
-	rows, err := s.db.Query(getUser, id)
-	if err != nil {
-		return user{}, err
-	}
-
-	u := user{}
-
-	for rows.Next() {
-		var (
-			username string
-			password string
-			email    string
-		)
-		err = rows.Scan(&username, &password, &email)
-		if err != nil {
-			return user{}, err
-		}
-		u.Id = id
-		u.Username = username
-		u.Password = password
-		u.Email = email
-	}
-
-	if err = rows.Err(); err != nil {
-		return user{}, err
-	}
-
-	return u, nil
-}
-
 const pragmaWALEnabled = `PRAGMA journal_mode = WAL;`
 const pragma500BusyTimeout = `PRAGMA busy_timeout = 5000;`
 const pragmaForeignKeysON = `PRAGMA foreign_keys = on;`
@@ -480,29 +404,13 @@ guideId INTEGER NOT NULL,
 FOREIGN KEY(guideId) REFERENCES guide(Id),
 CHECK (name <> ''));`
 
-const createUserTable = `
-CREATE TABLE IF NOT EXISTS user(
-Id INTEGER NOT NULL PRIMARY KEY,
-username TEXT  NOT NULL,
-password TEXT NOT NULL,
-email TEXT NOT NULL,
-CHECK (
-    username <> '' AND
-    password <> '' AND
-    length(password) >= 8 AND
-    email <> ''));`
-
 const insertGuide = `INSERT INTO guide(name, description, latitude, longitude ) VALUES (?, ?, ?, ?);`
 
 const insertPoi = `INSERT INTO poi(name, description, latitude, longitude, guideId ) VALUES (?, ?, ?, ?, ?);`
 
-const insertUser = `INSERT INTO user(username, password,  email) VALUES (?, ?, ?);`
-
 const getGuide = `SELECT name, description, latitude, longitude FROM guide WHERE Id = ?`
 
 const getPoi = `SELECT name, description, latitude, longitude, guideid FROM poi WHERE Id = ?`
-
-const getUser = `SELECT Username, Password, Email FROM user WHERE Id = ?`
 
 const updateGuide = `UPDATE guide SET name = ?, description = ?, latitude = ?, longitude = ? WHERE Id = ?`
 
