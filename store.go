@@ -10,16 +10,15 @@ type store interface {
 	GetGuide(int64) (guide, error)
 	CreateGuide(string, ...guideOption) (*guide, error)
 	UpdateGuide(*guide) error
+	GetAllGuides() []guide
 
 	GetPoi(int64) (pointOfInterest, error)
 	CreatePoi(string, int64, ...poiOption) (*pointOfInterest, error)
 	UpdatePoi(*pointOfInterest) error
+	GetAllPois(int64) []pointOfInterest
 
 	GetUser(int64) (user, error)
 	CreateUser(string, string, string, string) (*user, error)
-
-	GetAllGuides() []guide
-	GetAllPois(int64) []pointOfInterest
 }
 
 // todo should be pointers and Posgres
@@ -124,6 +123,8 @@ func (s *memoryStore) GetAllPois(guideId int64) []pointOfInterest {
 	if !ok {
 		return []pointOfInterest{}
 	}
+	//todo why is this a warning
+	//Empty slice declaration using a literal
 	pois := []pointOfInterest{}
 	for _, poi := range s.Pois {
 		if poi.GuideID == guideId {

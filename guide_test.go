@@ -22,7 +22,7 @@ func TestGuideWithValidStringCoordinatesErrorsOnInvalidCoordinates(t *testing.T)
 		{name: "empty Longitude", latitude: "11", longitude: ""},
 	}
 	for _, tc := range testCases {
-		_, err := store.CreateGuide(tc.name, guide.GuideWithValidStringCoordinates(tc.latitude, tc.longitude))
+		_, err := store.CreateGuide(tc.name, guide.WithValidStringCoordinates(tc.latitude, tc.longitude))
 		if err == nil {
 			t.Errorf("want error on %s, Latitude: %s  Longitude: %s", tc.name, tc.latitude, tc.longitude)
 		}

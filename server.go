@@ -102,7 +102,7 @@ func (s *Server) HandleCreateGuidePost() http.HandlerFunc {
 			Longitude:   r.PostFormValue("longitude"),
 			Errors:      []string{},
 		}
-		g, err := s.store.CreateGuide(guideForm.Name, GuideWithValidStringCoordinates(guideForm.Latitude, guideForm.Longitude), GuideWithDescription(guideForm.Description))
+		g, err := s.store.CreateGuide(guideForm.Name, WithValidStringCoordinates(guideForm.Latitude, guideForm.Longitude), WithDescription(guideForm.Description))
 		if err != nil {
 			guideForm.Errors = append(guideForm.Errors, err.Error())
 			w.WriteHeader(http.StatusBadRequest)

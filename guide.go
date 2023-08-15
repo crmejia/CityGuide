@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-func GuideWithValidStringCoordinates(latitude, longitude string) guideOption {
+func WithValidStringCoordinates(latitude, longitude string) guideOption {
 	return func(g *guide) error {
 		coordinate, err := parseCoordinates(latitude, longitude)
 		if err != nil {
@@ -18,7 +18,7 @@ func GuideWithValidStringCoordinates(latitude, longitude string) guideOption {
 	}
 }
 
-func GuideWithDescription(description string) guideOption {
+func WithDescription(description string) guideOption {
 	return func(g *guide) error {
 		g.Description = description
 		return nil
@@ -27,9 +27,9 @@ func GuideWithDescription(description string) guideOption {
 
 func PoiWithValidStringCoordinates(latitude, longitude string) poiOption {
 	return func(poi *pointOfInterest) error {
-		coordinate, error := parseCoordinates(latitude, longitude)
-		if error != nil {
-			return error
+		coordinate, err := parseCoordinates(latitude, longitude)
+		if err != nil {
+			return err
 		}
 		poi.Coordinate = coordinate
 		return nil
@@ -48,12 +48,16 @@ type guide struct {
 	Name        string
 	Description string
 	Coordinate  coordinate
-	Pois        []pointOfInterest //used to render /guide/:Id
+	Pois        []pointOfInterest
+
+	// Guide.mapArea/coordinates}
 }
 
 type coordinate struct {
 	Latitude, Longitude float64
 }
+
+//todo type boundedCoordinate coordinate
 
 func newCoordinate(latitude, longitude float64) (coordinate, error) {
 	if latitude < -90 || latitude > 90 {
@@ -108,12 +112,20 @@ func newGuide(name string, opts ...guideOption) (guide, error) {
 	return g, nil
 }
 
+// pointOfInterest represents a geo location in a map. Hence,
+// the relationship is one-to-many, Guide to points of Interests
+// there is no guarantee that a poi is bounded within a maps coordinates. See IsBounded()
 type pointOfInterest struct {
 	Id          int64
 	GuideID     int64
 	Coordinate  coordinate
 	Name        string
 	Description string
+}
+
+// IsBounded determines if a pointOfInterest is bounded within Guide.mapArea/coordinates
+func (p pointOfInterest) IsBounded() bool {
+	return false
 }
 
 type poiOption func(*pointOfInterest) error

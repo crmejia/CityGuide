@@ -31,9 +31,9 @@ func TestNewServerErrors(t *testing.T) {
 func TestIndexHandler(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	_, err := store.CreateGuide("Nairobi", guide.GuideWithValidStringCoordinates("10", "10"))
-	_, err = store.CreateGuide("Fukuoka", guide.GuideWithValidStringCoordinates("10", "10"))
-	_, err = store.CreateGuide("Guia de Restaurates Roma, CDMX", guide.GuideWithValidStringCoordinates("10", "10"))
+	_, err := store.CreateGuide("Nairobi", guide.WithValidStringCoordinates("10", "10"))
+	_, err = store.CreateGuide("Fukuoka", guide.WithValidStringCoordinates("10", "10"))
+	_, err = store.CreateGuide("Guia de Restaurates Roma, CDMX", guide.WithValidStringCoordinates("10", "10"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestGetGuideRoute(t *testing.T) {
 	}
 
 	store := guide.OpenMemoryStore()
-	_, err := store.CreateGuide("San Cristobal", guide.GuideWithValidStringCoordinates("10", "10"))
+	_, err := store.CreateGuide("San Cristobal", guide.WithValidStringCoordinates("10", "10"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +153,7 @@ func TestGetGuideRoute(t *testing.T) {
 func TestGuideHandlerRendersMap(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	_, err := store.CreateGuide("San Cristobal", guide.GuideWithValidStringCoordinates("10", "10"))
+	_, err := store.CreateGuide("San Cristobal", guide.WithValidStringCoordinates("10", "10"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -359,7 +359,7 @@ func TestEditGuideRoute(t *testing.T) {
 	}
 
 	store := guide.OpenMemoryStore()
-	_, err := store.CreateGuide("San Cristobal", guide.GuideWithValidStringCoordinates("10", "10"))
+	_, err := store.CreateGuide("San Cristobal", guide.WithValidStringCoordinates("10", "10"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -393,7 +393,7 @@ func TestEditGuideRoute(t *testing.T) {
 func TestCreatePoiHandlerGetRendersForm(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	_, err := store.CreateGuide("San Cristobal", guide.GuideWithValidStringCoordinates("10", "10"))
+	_, err := store.CreateGuide("San Cristobal", guide.WithValidStringCoordinates("10", "10"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -473,7 +473,7 @@ func TestCreatePoiHandlerFormErrors(t *testing.T) {
 		{"name=test&latitude=10&longitude=notanumber", "longitude has to be a number"},
 	}
 	store := guide.OpenMemoryStore()
-	g, err := store.CreateGuide("test", guide.GuideWithValidStringCoordinates("10", "10"))
+	g, err := store.CreateGuide("test", guide.WithValidStringCoordinates("10", "10"))
 
 	server, err := guide.NewServer("localhost:8080", &store, os.Stdout)
 	if err != nil {
@@ -507,7 +507,7 @@ func TestCreatePoiHandlerFormErrors(t *testing.T) {
 func TestCreatePoiHandlerPost(t *testing.T) {
 	t.Parallel()
 	store := guide.OpenMemoryStore()
-	g, err := store.CreateGuide("San Cristobal", guide.GuideWithValidStringCoordinates("16.7371", "-92.6375"))
+	g, err := store.CreateGuide("San Cristobal", guide.WithValidStringCoordinates("16.7371", "-92.6375"))
 	if err != nil {
 		t.Fatal(err)
 	}
