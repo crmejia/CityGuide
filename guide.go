@@ -130,7 +130,7 @@ func (p pointOfInterest) IsBounded() bool {
 
 type poiOption func(*pointOfInterest) error
 
-func newPointOfInterest(name string, guideID int64, opts ...poiOption) (pointOfInterest, error) {
+func NewPointOfInterest(name string, guideID int64, opts ...poiOption) (pointOfInterest, error) {
 	if name == "" {
 		return pointOfInterest{}, errors.New("poi name cannot be empty")
 	}

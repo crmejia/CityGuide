@@ -132,6 +132,7 @@ func (s *Server) HandleCreateGuidePost() http.HandlerFunc {
 	}
 
 }
+
 func (s *Server) HandleEditGuideGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		guideID := mux.Vars(r)["id"]
@@ -227,11 +228,35 @@ func (s *Server) HandleEditGuidePost() http.HandlerFunc {
 			return
 		}
 		gURL := fmt.Sprintf("/guide/%d", g.Id)
-		http.Redirect(w, r, gURL, http.StatusSeeOther)
+		http.Redirect(w, r, gURL, http.StatusOK)
 	}
 
 }
 
+func (s *Server) HandleDeleteGuide() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		guideID := mux.Vars(r)["id"]
+		if guideID == "" {
+			http.Error(w, "no guideid provided", http.StatusBadRequest)
+			return
+		}
+		id, err := strconv.ParseInt(guideID, 10, 64)
+		if err != nil {
+			http.Error(w, "not able to parse guide ID", http.StatusBadRequest)
+			return
+		}
+		err = s.store.DeleteGuide(id)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		if mux.Vars(r)["HX-Trigger"] == "delete-btn" {
+			http.Redirect(w, r, "/guides", http.StatusSeeOther)
+		}
+		w.WriteHeader(http.StatusSeeOther)
+	}
+}
 func (s *Server) HandleCreatePoiGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		guideID := mux.Vars(r)["id"]
@@ -293,7 +318,17 @@ func (s *Server) HandleCreatePoiPost() http.HandlerFunc {
 			Latitude:    r.PostFormValue("latitude"),
 			Longitude:   r.PostFormValue("longitude"),
 		}
-		_, err = s.store.CreatePoi(poiForm.Name, gid, PoiWithValidStringCoordinates(poiForm.Latitude, poiForm.Longitude), PoiWithDescription(poiForm.Description))
+		poi, err := NewPointOfInterest(poiForm.Name, gid, PoiWithValidStringCoordinates(poiForm.Latitude, poiForm.Longitude), PoiWithDescription(poiForm.Description))
+		if err != nil {
+			poiForm.Errors = append(poiForm.Errors, err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			err := s.templateRegistry.render(w, createPoiFormTemplate, poiForm)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+		err = s.store.CreatePoi(&poi)
 		if err != nil {
 			poiForm.Errors = append(poiForm.Errors, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
@@ -306,6 +341,42 @@ func (s *Server) HandleCreatePoiPost() http.HandlerFunc {
 
 		gURL := fmt.Sprintf("/guide/%d", gid)
 		http.Redirect(w, r, gURL, http.StatusSeeOther)
+	}
+}
+
+func (s *Server) HandleDeletePoi() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		guideIDString := mux.Vars(r)["guideID"]
+		if guideIDString == "" {
+			http.Error(w, "no guide ID provided", http.StatusBadRequest)
+			return
+		}
+		poiIDString := mux.Vars(r)["id"]
+		if poiIDString == "" {
+			http.Error(w, "no poi ID provided", http.StatusBadRequest)
+			return
+		}
+		guideID, err := strconv.ParseInt(guideIDString, 10, 64)
+		if err != nil {
+			http.Error(w, "not able to parse guide ID", http.StatusBadRequest)
+			return
+		}
+		poiID, err := strconv.ParseInt(poiIDString, 10, 64)
+		if err != nil {
+			http.Error(w, "not able to parse poi ID", http.StatusBadRequest)
+			return
+		}
+
+		err = s.store.DeletePoi(guideID, poiID)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		if mux.Vars(r)["HX-Trigger"] == "delete-btn" {
+			http.Redirect(w, r, "/guides", http.StatusSeeOther)
+		}
+		w.WriteHeader(http.StatusSeeOther)
 	}
 }
 
@@ -346,6 +417,7 @@ func (s *Server) Routes() http.Handler {
 	router.HandleFunc("/guides", s.HandleGuides())
 	router.HandleFunc("/guide/create", s.HandleCreateGuideGet()).Methods(http.MethodGet)
 	router.HandleFunc("/guide/create", s.HandleCreateGuidePost()).Methods(http.MethodPost)
+	router.HandleFunc("/guide/{id}", s.HandleDeleteGuide()).Methods(http.MethodDelete)
 	router.HandleFunc("/guide/{id}", s.HandleGuide())
 	router.HandleFunc("/guide/{id}/edit", s.HandleEditGuideGet()).Methods(http.MethodGet)
 	router.HandleFunc("/guide/{id}/edit", s.HandleEditGuidePost()).Methods(http.MethodPost)
@@ -353,6 +425,7 @@ func (s *Server) Routes() http.Handler {
 	//POI *-> guide
 	router.HandleFunc("/guide/poi/create/{id}", s.HandleCreatePoiGet()).Methods(http.MethodGet)
 	router.HandleFunc("/guide/poi/create/{id}", s.HandleCreatePoiPost()).Methods(http.MethodPost)
+	router.HandleFunc("/guide/{guideID}/poi/{id}", s.HandleDeletePoi()).Methods(http.MethodDelete)
 	router.HandleFunc("/", HandleIndex())
 	return router
 }

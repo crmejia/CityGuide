@@ -417,6 +417,39 @@ func TestEditGuideRoute(t *testing.T) {
 		}
 	}
 }
+
+func TestDeleteGuideHandlerDeletesGuide(t *testing.T) {
+	t.Parallel()
+	s := openTmpStorage(t)
+	g, err := guide.NewGuide("San Cristobal", guide.WithValidStringCoordinates("10", "10"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = s.CreateGuide(&g)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server, err := guide.NewServer("localhost:8080", s, os.Stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": strconv.FormatInt(1, 10)})
+	handler := server.HandleDeleteGuide()
+	handler(rec, req)
+
+	res := rec.Result()
+	if res.StatusCode != http.StatusSeeOther {
+		t.Errorf("expected status %d, got %d", http.StatusSeeOther, res.StatusCode)
+	}
+
+	if len(s.GetAllGuides()) != 0 {
+		t.Error("expected table to be empty after delete")
+	}
+}
+
 func TestCreatePoiHandlerGetRendersForm(t *testing.T) {
 	t.Parallel()
 	s := openTmpStorage(t)
@@ -585,6 +618,51 @@ func TestCreatePoiHandlerPost(t *testing.T) {
 	got := pois[0]
 	if got.Description != "blah blah" {
 		t.Error("want poi description to be set")
+	}
+}
+
+func TestDeletePoiHandlerDeletesPoi(t *testing.T) {
+	t.Parallel()
+	s := openTmpStorage(t)
+	g, err := guide.NewGuide("San Cristobal", guide.WithValidStringCoordinates("10", "10"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = s.CreateGuide(&g)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	poi, err := guide.NewPointOfInterest("test", g.Id, guide.PoiWithValidStringCoordinates("10", "1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = s.CreatePoi(&poi)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server, err := guide.NewServer("localhost:8080", s, os.Stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/", nil)
+	req = mux.SetURLVars(req,
+		map[string]string{
+			"id":      strconv.FormatInt(poi.Id, 10),
+			"guideID": strconv.FormatInt(g.Id, 10),
+		})
+	handler := server.HandleDeletePoi()
+	handler(rec, req)
+
+	res := rec.Result()
+	if res.StatusCode != http.StatusSeeOther {
+		t.Errorf("expected status %d, got %d", http.StatusSeeOther, res.StatusCode)
+	}
+
+	if len(s.GetAllPois(g.Id)) != 0 {
+		t.Error("expected poi table to be empty after delete")
 	}
 }
 
