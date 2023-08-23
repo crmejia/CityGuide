@@ -8,7 +8,7 @@
             <p class="message-body"> {{ . }}</p>
             {{end}}
         </article>
-        <form class="form" action="/guide/poi/create/{{.GuideID}}" method="post">
+        <form class="form" action="/guide/{{.GuideID}}/poi/create" method="post">
             <fieldset>
                 <legend>POI Values</legend>
                 <input type="hidden" name="gid" value="{{.GuideID}}">

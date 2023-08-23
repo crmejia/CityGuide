@@ -287,7 +287,7 @@ func (s *sqliteStore) GetAllPois(guideId int64) []pointOfInterest {
 }
 
 func (s *sqliteStore) Search(query string) ([]guide, error) {
-	rows, err := s.db.Query(searchGuides, query+"%")
+	rows, err := s.db.Query(searchGuides, "%"+query+"%")
 	if err != nil {
 		return nil, err
 	}

@@ -2,7 +2,7 @@
 
 {{define "mapscript"}}
 <!-- ---------------------------->
-<!--TODO template this script-->
+<!--TODO move to another file-->
 <!-- ---------------------------->
 <script>
     let map = L.map('map').setView([{{.Coordinate.Latitude}}, {{.Coordinate.Longitude}}], 15);
@@ -27,9 +27,12 @@
     Delete Guide
 </button>
 <p class="content"> {{.Description}}</p>
+<p class="content">Lat: {{.Coordinate.Latitude}}, Lon:{{.Coordinate.Longitude}}</p>
 <div id="map" style="width: 600px; height: 400px;">
     {{template "mapscript" .}}
 </div>
+<div class="columns">
+    <div class="column">
 <table class="table">
     <thead>
     <tr>
@@ -38,22 +41,17 @@
     </tr>
     </thead>
     <tbody>
-    {{range .Pois}}
-    <tr>
-        <td> {{.Name}}</td>
-        <td>{{.Description}}</td>
-        <td>
-            <a href="#">Edit</a>
-            <a href="#" hx-delete="/guide/{{.GuideID}}/poi/{{.Id}}" hx-swap="outerHTML swap:1s" hx-confirm="Are you sure you want to delete this poi?" hx-target="closest tr">Delete</a>
-        </td>
-    </tr>
-    {{end}}
+        {{template "poiRows.html" .}}
     </tbody>
 </table>
-<div>
-    <a href="/guide/poi/create/{{.Id}}"> Add Poi</a>
-    <a href="/guides">back</a>
+    </div>
+    <div class="column" id="poi-focus">
+    </div>
 </div>
+<p>
+    <a class="button" href="/guide/{{.Id}}/poi/create">Add Poi</a>
+    <a href="/guides">back</a>
+</p>
 </body>
 </html>
 {{end}}

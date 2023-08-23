@@ -57,7 +57,7 @@ func (s *Server) HandleGuides() http.HandlerFunc {
 		}
 
 		if r.Header.Get("HX-Trigger") == "search" {
-			err = s.templateRegistry.renderPartial(w, rowsTemplate, guides)
+			err = s.templateRegistry.renderPartial(w, guideRowsTemplate, guides)
 			if err != nil {
 				http.Error(w, "internal server error", http.StatusInternalServerError)
 			}
@@ -280,6 +280,45 @@ func (s *Server) HandleDeleteGuide() http.HandlerFunc {
 	}
 }
 
+func (s *Server) HandlePoi() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		guideIDString := mux.Vars(r)["guideID"]
+		if guideIDString == "" {
+			http.Error(w, "no guide ID provided", http.StatusBadRequest)
+			return
+		}
+		poiIDString := mux.Vars(r)["poiID"]
+		if poiIDString == "" {
+			http.Error(w, "no poi ID provided", http.StatusBadRequest)
+			return
+		}
+		guideID, err := strconv.ParseInt(guideIDString, 10, 64)
+		if err != nil {
+			http.Error(w, "not able to parse guide ID", http.StatusBadRequest)
+			return
+		}
+		poiID, err := strconv.ParseInt(poiIDString, 10, 64)
+		if err != nil {
+			http.Error(w, "not able to parse poi ID", http.StatusBadRequest)
+			return
+		}
+
+		poi, err := s.store.GetPoi(guideID, poiID)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		if poi == nil {
+			http.Error(w, "point of interest not found", http.StatusNotFound)
+			return
+		}
+
+		err = s.templateRegistry.renderPartial(w, poiViewTemplate, poi)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+		}
+	}
+}
 func (s *Server) HandleCreatePoiGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		guideID := mux.Vars(r)["id"]
@@ -374,7 +413,7 @@ func (s *Server) HandleDeletePoi() http.HandlerFunc {
 			http.Error(w, "no guide ID provided", http.StatusBadRequest)
 			return
 		}
-		poiIDString := mux.Vars(r)["id"]
+		poiIDString := mux.Vars(r)["poiID"]
 		if poiIDString == "" {
 			http.Error(w, "no poi ID provided", http.StatusBadRequest)
 			return
@@ -447,9 +486,10 @@ func (s *Server) Routes() http.Handler {
 	router.HandleFunc("/guide/{id}/edit", s.HandleEditGuidePost()).Methods(http.MethodPost)
 
 	//POI *-> guide
-	router.HandleFunc("/guide/poi/create/{id}", s.HandleCreatePoiGet()).Methods(http.MethodGet)
-	router.HandleFunc("/guide/poi/create/{id}", s.HandleCreatePoiPost()).Methods(http.MethodPost)
-	router.HandleFunc("/guide/{guideID}/poi/{id}", s.HandleDeletePoi()).Methods(http.MethodDelete)
+	router.HandleFunc("/guide/{id}/poi/create", s.HandleCreatePoiGet()).Methods(http.MethodGet)
+	router.HandleFunc("/guide/{id}/poi/create", s.HandleCreatePoiPost()).Methods(http.MethodPost)
+	router.HandleFunc("/guide/{guideID}/poi/{poiID}", s.HandlePoi()).Methods(http.MethodGet)
+	router.HandleFunc("/guide/{guideID}/poi/{poiID}", s.HandleDeletePoi()).Methods(http.MethodDelete)
 	router.HandleFunc("/", HandleIndex())
 	return router
 }
@@ -460,9 +500,9 @@ func templateRoutes() *templateRegistry {
 
 	//todo iterate over template dir
 	for _, templateName := range []string{indexTemplate, guideTemplate, createGuideFormTemplate, editGuideFormTemplate, createPoiFormTemplate} {
-		pageTemplates[templateName] = template.Must(template.ParseFS(fs, templatesDir+templateName, templatesDir+baseTemplate, templatesDir+rowsTemplate))
+		pageTemplates[templateName] = template.Must(template.ParseFS(fs, templatesDir+templateName, templatesDir+baseTemplate, templatesDir+guideRowsTemplate, templatesDir+poiRowsTemplate))
 	}
-	for _, templateName := range []string{rowsTemplate} {
+	for _, templateName := range []string{guideRowsTemplate, poiViewTemplate} {
 		partialTemplates[templateName] = template.Must(template.ParseFS(fs, templatesDir+templateName))
 	}
 
@@ -496,7 +536,7 @@ func (t *templateRegistry) renderPartial(w io.Writer, templateFile string, data 
 	tmpl, ok := t.partialTemplates[templateFile]
 	if ok {
 		return tmpl.Execute(w, data)
-		//return tmpl.ExecuteTemplate(w, rowsTemplate, data)
+		//return tmpl.ExecuteTemplate(w, guideRowsTemplate, data)
 	}
 	return errors.New("Template not found ->" + templateFile)
 }
@@ -505,9 +545,11 @@ const (
 	templatesDir            = "templates/"
 	baseTemplate            = "base.html"
 	indexTemplate           = "index.html"
-	rowsTemplate            = "rows.html"
+	guideRowsTemplate       = "guideRows.html"
+	poiRowsTemplate         = "poiRows.html"
 	guideTemplate           = "guide.html"
 	createGuideFormTemplate = "createGuideForm.html"
 	editGuideFormTemplate   = "editGuideForm.html"
 	createPoiFormTemplate   = "createPoiForm.html"
+	poiViewTemplate         = "poiView.html"
 )

@@ -441,6 +441,35 @@ func TestDeleteGuideHandlerDeletesGuide(t *testing.T) {
 	}
 }
 
+func TestPoiHandlerRendersView(t *testing.T) {
+	t.Parallel()
+	server := newProvisionedServer(t)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req = mux.SetURLVars(req, map[string]string{
+		"guideID": "1",
+		"poiID":   "1",
+	})
+
+	handler := server.HandlePoi()
+	handler(rec, req)
+
+	result := rec.Result()
+	if result.StatusCode != http.StatusOK {
+		t.Errorf("expected status 200 OK, body %d", result.StatusCode)
+	}
+	body, err := io.ReadAll(result.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "test 1"
+	got := string(body)
+	if !strings.Contains(got, want) {
+		t.Errorf("want result to contain %s\nGot:\n%s", want, got)
+
+	}
+}
+
 func TestCreatePoiHandlerGetRendersForm(t *testing.T) {
 	t.Parallel()
 	s := openTmpStorage(t)
@@ -477,7 +506,7 @@ func TestCreatePoiHandlerGetRendersForm(t *testing.T) {
 	}
 }
 
-// TODO {"/guide/poi/create/1", http.StatusNotFound, "guide not found"},
+// TODO {"/guide/poi/create/1", http.StatusNotFound, "guide not found"}, test poi create on non-existing guide id
 func TestCreatePoiHandlerErrors(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
@@ -771,14 +800,25 @@ func openTmpStorage(t *testing.T) guide.Storage {
 func newProvisionedServer(t *testing.T) *guide.Server {
 	storage := openTmpStorage(t)
 	input := []string{"test 1", "guide 1", "test 2"}
-	for _, name := range input {
-		g, err := guide.NewGuide(name, guide.WithValidStringCoordinates("10", "10"))
+	for _, guideName := range input {
+		g, err := guide.NewGuide(guideName, guide.WithValidStringCoordinates("10", "10"))
 		if err != nil {
 			t.Fatal(err)
 		}
 		err = storage.CreateGuide(&g)
 		if err != nil {
 			t.Fatal(err)
+		}
+		for _, poiName := range input {
+			p, err := guide.NewPointOfInterest(poiName, g.Id, guide.PoiWithValidStringCoordinates("10", "10"))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = storage.CreatePoi(&p)
+			if err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
 
