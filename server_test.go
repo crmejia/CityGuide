@@ -28,15 +28,6 @@ func TestNewServerErrors(t *testing.T) {
 	}
 }
 
-func openTmpStorage(t *testing.T) guide.Storage {
-	tempDB := t.TempDir() + t.Name() + ".store"
-	sqliteStore, err := guide.OpenSQLiteStorage(tempDB)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return sqliteStore
-}
-
 func TestIndexHandler(t *testing.T) {
 	t.Parallel()
 	s := openTmpStorage(t)
@@ -666,105 +657,115 @@ func TestDeletePoiHandlerDeletesPoi(t *testing.T) {
 	}
 }
 
-//func TestCreateUserHandlerGetRendersForm(t *testing.T) {
-//	t.Parallel()
-//	s := openTmpStorage(t)
-//	server, err := guide.NewServer("localhost:8080", s, os.Stdout)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	rec := httptest.NewRecorder()
-//	req := httptest.NewRequest(http.MethodGet, "/user/signup", nil)
-//	handler := server.HandleCreateUser()
-//	handler(rec, req)
-//
-//	res := rec.Result()
-//	if res.StatusCode != http.StatusOK {
-//		t.Errorf("expected status 200 OK, body %d", res.StatusCode)
-//	}
-//	body, err := io.ReadAll(res.Body)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	want := "Create your account"
-//	got := string(body)
-//	if !strings.Contains(got, want) {
-//		t.Errorf("want index to contain %s\nGot:\n%s", want, got)
-//	}
-//}
-//
-//func TestCreateUserHandlerPostCreatesUser(t *testing.T) {
-//	t.Parallel()
-//	s := openTmpStorage(t)
-//	server, err := guide.NewServer("localhost:8080", s, os.Stdout)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	rec := httptest.NewRecorder()
-//	form := strings.NewReader("username=test&password=password&confirm-password=password&email=email@test.com")
-//	req := httptest.NewRequest(http.MethodPost, "/user/create", form)
-//	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-//	handler := server.HandleCreateUser()
-//	handler(rec, req)
-//
-//	res := rec.Result()
-//	if res.StatusCode != http.StatusSeeOther {
-//		t.Errorf("expected status 303 SeeOther, got %d", res.StatusCode)
-//	}
-//	if len(s.Users) != 1 {
-//		t.Error("want store to contain new user")
-//	}
-//
-//	u, err := s.GetUser(s.NextUserKey - 1)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	if u.Username == "" {
-//		t.Error("want guide description to not be empty")
-//	}
-//}
-//
-//func TestCreateUserHandlerPostFormErrors(t *testing.T) {
-//	t.Parallel()
-//	testCases := []struct {
-//		form string
-//		want string
-//	}{
-//		{"username=&password=password&confirm-password=password&email=email@test.com", "username cannot be empty"},
-//		{"username=test&password=&confirm-password=password&email=email@test.com", "password cannot be empty"},
-//		{"username=test&password=short&confirm-password=short&email=email@test.com", "password has to be at least 8 characters long"},
-//		{"username=test&password=password&confirm-password=passsentence&email=email@test.com", "passwords do not match"},
-//		{"username=test&password=password&confirm-password=password&email=", "email cannot be empty"},
-//		{"username=test&password=password&confirm-password=password&email=email", "email has to be a valid address"},
-//	}
-//	s := openTmpStorage(t)
-//	freePort, err := freeport.GetFreePort()
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	address := fmt.Sprintf("localhost:%d", freePort)
-//	server, err := guide.NewServer(address, s, os.Stdout)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	handler := server.HandleCreateUser()
-//	for _, tc := range testCases {
-//		rec := httptest.NewRecorder()
-//		req := httptest.NewRequest(http.MethodPost, "/user/create", strings.NewReader(tc.form))
-//		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-//		handler(rec, req)
-//
-//		res := rec.Result()
-//		if res.StatusCode != http.StatusBadRequest {
-//			t.Errorf("expected status 400 bad request, got %d", res.StatusCode)
-//		}
-//		body, err := io.ReadAll(res.Body)
-//		if err != nil {
-//			t.Fatal(err)
-//		}
-//		got := string(body)
-//		if !strings.Contains(got, tc.want) {
-//			t.Errorf("want page to contain %s\nGot:\n%s", tc.want, got)
-//		}
-//	}
-//}
+func TestSearchGuide(t *testing.T) {
+	t.Parallel()
+	server := newProvisionedServer(t)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/guide/search?q=guide", nil)
+	//req = mux.SetURLVars(req, map[string]string{"q": "guide"})
+	handler := server.HandleGuides()
+	handler(rec, req)
+
+	res := rec.Result()
+	if http.StatusOK != res.StatusCode {
+		t.Errorf("want status code %d, got %d", http.StatusOK, res.StatusCode)
+	}
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(body)
+	want := "guide 1"
+	if !strings.Contains(got, want) {
+		t.Errorf("want body to contain %s, got %s instead.", want, got)
+	}
+}
+
+func TestSearchGuideEmptySearchReturnsAll(t *testing.T) {
+	t.Parallel()
+	server := newProvisionedServer(t)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/guide/search", nil)
+
+	handler := server.HandleGuides()
+	handler(rec, req)
+
+	res := rec.Result()
+	if http.StatusOK != res.StatusCode {
+		t.Errorf("want status code %d, got %d", http.StatusOK, res.StatusCode)
+	}
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(body)
+	want := "test 1"
+	if !strings.Contains(got, want) {
+		t.Errorf("want body to contain %s, got %s instead.", want, got)
+	}
+}
+
+func TestSearchGuideNoMatchReturnsNothing(t *testing.T) {
+	t.Parallel()
+	server := newProvisionedServer(t)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/guide/search?q=apple", nil)
+
+	handler := server.HandleGuides()
+	handler(rec, req)
+
+	res := rec.Result()
+	if http.StatusNotFound != res.StatusCode {
+		t.Errorf("want status code %d, got %d", http.StatusNotFound, res.StatusCode)
+	}
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(body)
+	want := "no guide found"
+	if !strings.Contains(got, want) {
+		t.Errorf("want body to contain %s, got %s instead.", want, got)
+	}
+}
+
+// test helpers
+func openTmpStorage(t *testing.T) guide.Storage {
+	tempDB := t.TempDir() + t.Name() + ".store"
+	// I don't have to close the db connection because the clients will after running query?
+	//i'm not sure it needs to be closed here. If deferred it will get destroyed.
+	sqliteStore, err := guide.OpenSQLiteStorage(tempDB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sqliteStore
+}
+
+func newProvisionedServer(t *testing.T) *guide.Server {
+	storage := openTmpStorage(t)
+	input := []string{"test 1", "guide 1", "test 2"}
+	for _, name := range input {
+		g, err := guide.NewGuide(name, guide.WithValidStringCoordinates("10", "10"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = storage.CreateGuide(&g)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	freePort, err := freeport.GetFreePort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	address := fmt.Sprintf("localhost:%d", freePort)
+	server, err := guide.NewServer(address, storage, os.Stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &server
+
+}

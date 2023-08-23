@@ -1,0 +1,13 @@
+{{define "rows.html"}}
+{{range .}}
+<tr>
+    <td><a href="/guide/{{.Id}}">{{.Name}}</td>
+    <td>{{.Description}}</td>
+    <td>
+        <a href="/guide/{{.Id}}/edit">Edit</a>
+        <a href="#" hx-delete="/guide/{{.Id}}" hx-swap="outerHTML swap:1s"
+           hx-confirm="Are you sure you want to delete this guide?" hx-target="closest tr">Delete</a>
+    </td>
+</tr>
+{{end}}
+{{end}}

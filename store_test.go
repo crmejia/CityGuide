@@ -216,19 +216,58 @@ func TestSqliteStore_PoiErrors(t *testing.T) {
 	if err == nil {
 		t.Error("want error on non-existing guide")
 	}
+}
 
-	//g, err := guide.NewGuide("test", guide.WithValidStringCoordinates("10", "10"))
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
+func TestSqliteStore_Search(t *testing.T) {
+	t.Parallel()
+	s := openTmpStorage(t)
+	input := []string{"test 1", "guide 1", "test 2"}
+	for _, name := range input {
+		g, err := guide.NewGuide(name, guide.WithValidStringCoordinates("10", "10"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = s.CreateGuide(&g)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 
-	//err = sqliteStore.CreateGuide(&g)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//
-	//_, err = sqliteStore.CreatePoi("test", g.Id, guide.PoiWithValidStringCoordinates("1110", "10"))
-	//if err == nil {
-	//	t.Error("want error on invalid coordinates")
-	//}
+	guides, err := s.Search("test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := len(guides)
+	if got != 2 {
+		t.Errorf("want to have 2 search results, got %d", got)
+	}
+
+}
+
+func TestSqliteStore_SearchNoResults(t *testing.T) {
+	t.Parallel()
+	s := openTmpStorage(t)
+	input := []string{"test 1", "guide 1", "test 2"}
+	for _, name := range input {
+		g, err := guide.NewGuide(name, guide.WithValidStringCoordinates("10", "10"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = s.CreateGuide(&g)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	guides, err := s.Search("apple")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := len(guides)
+	if got != 0 {
+		t.Errorf("want to have 2 search results, got %d", got)
+	}
+
 }

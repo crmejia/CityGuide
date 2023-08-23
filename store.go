@@ -12,6 +12,7 @@ type Storage interface {
 	UpdateGuide(*guide) error
 	DeleteGuide(int64) error
 	GetAllGuides() []guide
+	Search(string) ([]guide, error)
 
 	GetPoi(int64, int64) (*pointOfInterest, error)
 	CreatePoi(*pointOfInterest) error
@@ -284,6 +285,43 @@ func (s *sqliteStore) GetAllPois(guideId int64) []pointOfInterest {
 	return pois
 }
 
+func (s *sqliteStore) Search(query string) ([]guide, error) {
+	rows, err := s.db.Query(searchGuides, query+"%")
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]guide, 0)
+	for rows.Next() {
+		var (
+			id          int64
+			name        string
+			description string
+			latitude    float64
+			longitude   float64
+		)
+		err = rows.Scan(&id, &name, &description, &latitude, &longitude)
+		if err != nil {
+			return nil, err
+		}
+		g := guide{
+			Id:          id,
+			Name:        name,
+			Description: description,
+			Coordinate: coordinate{
+				Latitude:  latitude,
+				Longitude: longitude,
+			},
+		}
+		results = append(results, g)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
 const pragmaWALEnabled = `PRAGMA journal_mode = WAL;`
 const pragma500BusyTimeout = `PRAGMA busy_timeout = 5000;`
 const pragmaForeignKeysON = `PRAGMA foreign_keys = on;`
@@ -327,3 +365,5 @@ const deletePoi = `DELETE FROM poi WHERE guideid =? AND Id = ?`
 const getAllGuides = `SELECT Id,name, description, latitude, longitude FROM guide`
 
 const getAllPois = `SELECT Id, name, description, latitude, longitude FROM poi WHERE guideid = ?`
+
+const searchGuides = `SELECT Id,name, description, latitude, longitude FROM guide WHERE name LIKE ?`
