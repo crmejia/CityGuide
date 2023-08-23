@@ -25,7 +25,8 @@
         {{template "rows.html" .}}
     </tbody>
 </table>
-<div>
+<p class="content">
     <a class="button" href="/guide/create">Create New Guide</a>
-</div>
+    <em class="content" hx-get="/guide/count" hx-trigger="load" ></em>
+</p>
 {{end}}

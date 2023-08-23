@@ -119,6 +119,28 @@ func TestSQLiteStore_GetAllGuides(t *testing.T) {
 	}
 }
 
+func TestSQLiteStore_CountGuides(t *testing.T) {
+	t.Parallel()
+	tempDB := openTmpStorage(t)
+
+	want := 3
+	for i := 0; i < want; i++ {
+		g, err := guide.NewGuide("newGuide", guide.WithValidStringCoordinates("10", "10"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = tempDB.CreateGuide(&g)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got := tempDB.CountGuides()
+	if want != got {
+		t.Errorf("want CountGuides to return %d guides, got %d", want, got)
+	}
+}
+
 func TestSqliteStore_PoiRoundtripCreateUpdateGetDeletePoi(t *testing.T) {
 	t.Parallel()
 	tempDB := t.TempDir() + t.Name() + ".store"

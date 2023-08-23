@@ -13,6 +13,7 @@ type Storage interface {
 	DeleteGuide(int64) error
 	GetAllGuides() []guide
 	Search(string) ([]guide, error)
+	CountGuides() int
 
 	GetPoi(int64, int64) (*pointOfInterest, error)
 	CreatePoi(*pointOfInterest) error
@@ -322,6 +323,26 @@ func (s *sqliteStore) Search(query string) ([]guide, error) {
 	return results, nil
 }
 
+func (s *sqliteStore) CountGuides() int {
+	rows, err := s.db.Query(countGuides)
+	if err != nil {
+		return 0
+	}
+
+	var count int
+	for rows.Next() {
+		err = rows.Scan(&count)
+		if err != nil {
+			return 0
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		return 0
+	}
+	return count
+}
+
 const pragmaWALEnabled = `PRAGMA journal_mode = WAL;`
 const pragma500BusyTimeout = `PRAGMA busy_timeout = 5000;`
 const pragmaForeignKeysON = `PRAGMA foreign_keys = on;`
@@ -367,3 +388,5 @@ const getAllGuides = `SELECT Id,name, description, latitude, longitude FROM guid
 const getAllPois = `SELECT Id, name, description, latitude, longitude FROM poi WHERE guideid = ?`
 
 const searchGuides = `SELECT Id,name, description, latitude, longitude FROM guide WHERE name LIKE ?`
+
+const countGuides = `SELECT COUNT (*) FROM guide`

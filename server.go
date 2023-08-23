@@ -103,6 +103,13 @@ func (s *Server) HandleGuide() http.HandlerFunc {
 	}
 }
 
+func (s *Server) HandleGuideCount() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		count := s.store.CountGuides()
+		io.WriteString(w, fmt.Sprintf("%d Total Guides", count))
+	}
+}
+
 func (s *Server) HandleCreateGuideGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := s.templateRegistry.renderPage(w, createGuideFormTemplate, nil)
@@ -433,6 +440,7 @@ func (s *Server) Routes() http.Handler {
 	router.HandleFunc("/guides", s.HandleGuides())
 	router.HandleFunc("/guide/create", s.HandleCreateGuideGet()).Methods(http.MethodGet)
 	router.HandleFunc("/guide/create", s.HandleCreateGuidePost()).Methods(http.MethodPost)
+	router.HandleFunc("/guide/count", s.HandleGuideCount()).Methods(http.MethodGet)
 	router.HandleFunc("/guide/{id}", s.HandleDeleteGuide()).Methods(http.MethodDelete)
 	router.HandleFunc("/guide/{id}", s.HandleGuide())
 	router.HandleFunc("/guide/{id}/edit", s.HandleEditGuideGet()).Methods(http.MethodGet)

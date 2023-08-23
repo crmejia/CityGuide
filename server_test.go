@@ -731,6 +731,31 @@ func TestSearchGuideNoMatchReturnsNothing(t *testing.T) {
 	}
 }
 
+func TestServer_HandleGuideCount(t *testing.T) {
+	t.Parallel()
+	server := newProvisionedServer(t)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/guide/count", nil)
+
+	handler := server.HandleGuideCount()
+	handler(rec, req)
+
+	res := rec.Result()
+	if http.StatusOK != res.StatusCode {
+		t.Errorf("want status code %d, got %d", http.StatusOK, res.StatusCode)
+	}
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(body)
+	want := "3"
+	if !strings.Contains(got, want) {
+		t.Errorf("want body to contain %s, got %s instead.", want, got)
+	}
+}
+
 // test helpers
 func openTmpStorage(t *testing.T) guide.Storage {
 	tempDB := t.TempDir() + t.Name() + ".store"
