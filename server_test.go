@@ -73,35 +73,77 @@ func TestIndexHandler(t *testing.T) {
 	}
 }
 
-func TestGetIndexRoute(t *testing.T) {
+func TestGetIndexReturns200OnEmptyStore(t *testing.T) {
 	t.Parallel()
-	testCases := []struct {
-		path               string
-		expectedStatusCode int
-	}{
-		{"/", http.StatusOK}, //should be StatusFound 302 but httptest.Client follows redirects
-		{"/guides", http.StatusOK},
-		{"/unknownroute", http.StatusNotFound},
-	}
-
 	s := openTmpStorage(t)
 	freePort, err := freeport.GetFreePort()
 	if err != nil {
 		t.Fatal(err)
 	}
 	address := fmt.Sprintf("localhost:%d", freePort)
-	server, err := guide.NewServer(address, s, os.Stdout)
+	server, err := guide.NewServer(address, s, os.Stdout) //empty store
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	ts := httptest.NewServer(server.Routes())
 	defer ts.Close()
+	client := ts.Client()
+	res, err := client.Get(ts.URL + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("for index path / want status 200 OK, got %d", res.StatusCode)
+	}
+}
+
+func TestRoutes(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		path               string
+		httpMethod         string
+		expectedStatusCode int
+	}{
+		{"/", http.MethodGet, http.StatusOK}, //should be StatusFound 302 but httptest.Client follows redirects
+		{"/guides", http.MethodGet, http.StatusOK},
+		{"/unknownroute", http.MethodGet, http.StatusNotFound},
+		{"/guide/1", http.MethodGet, http.StatusOK},
+		{"/guide/42", http.MethodGet, http.StatusNotFound},
+		{"/guide/", http.MethodGet, http.StatusNotFound},
+		{"/guide/", http.MethodGet, http.StatusNotFound},
+		{"/guide/blah", http.MethodGet, http.StatusBadRequest},
+		{"/guides?q=non-existent", http.MethodGet, http.StatusNotFound}, //search
+		{"/guide/count", http.MethodGet, http.StatusOK},                 //count
+		{"/guide/create", http.MethodGet, http.StatusOK},
+		{"/guide/1/edit", http.MethodGet, http.StatusOK},
+		{"/guide/42/edit", http.MethodGet, http.StatusNotFound},
+		{"/guide/42/edit", http.MethodPost, http.StatusNotFound},
+		{"/guide/1/poi/1", http.MethodGet, http.StatusOK},
+		{"/guide/1/poi/", http.MethodGet, http.StatusNotFound},
+		{"/guide/1/poi/42", http.MethodGet, http.StatusNotFound},
+		{"/guide/42/poi/1", http.MethodGet, http.StatusNotFound},
+		{"/guide/1/poi/create", http.MethodGet, http.StatusOK},
+		{"/guide/42/poi/create", http.MethodGet, http.StatusNotFound},
+		{"/guide/42/poi/create", http.MethodPost, http.StatusNotFound},
+		{"/guide/1/poi/edit", http.MethodGet, http.StatusBadRequest},
+		{"/guide/one/poi/edit", http.MethodGet, http.StatusBadRequest},
+		{"/guide/1/poi/1/edit", http.MethodGet, http.StatusOK},
+		{"/guide/42/poi/1/edit", http.MethodGet, http.StatusNotFound},
+		{"/guide/1/poi/42/edit", http.MethodPatch, http.StatusMethodNotAllowed},
+	}
+	server := newProvisionedServer(t)
+	ts := httptest.NewServer(server.Routes())
+	defer ts.Close()
 
 	client := ts.Client()
 	for _, tc := range testCases {
-		res, err := client.Get(ts.URL + tc.path)
-
+		req, err := http.NewRequest(tc.httpMethod, ts.URL+tc.path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := client.Do(req)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -112,53 +154,6 @@ func TestGetIndexRoute(t *testing.T) {
 	}
 }
 
-func TestGetGuideRoute(t *testing.T) {
-	t.Parallel()
-	testCases := []struct {
-		path               string
-		expectedStatusCode int
-	}{
-		{"/guide/1", http.StatusOK}, //should be StatusFound 302 but httptest.Client follows redirects
-		{"/guide/2", http.StatusNotFound},
-	}
-
-	s := openTmpStorage(t)
-
-	g, err := guide.NewGuide("San Cristobal", guide.WithValidStringCoordinates("10", "10"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.CreateGuide(&g)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	freePort, err := freeport.GetFreePort()
-	if err != nil {
-		t.Fatal(err)
-	}
-	address := fmt.Sprintf("localhost:%d", freePort)
-	server, err := guide.NewServer(address, s, os.Stdout)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ts := httptest.NewServer(server.Routes())
-	defer ts.Close()
-
-	client := ts.Client()
-	for _, tc := range testCases {
-		res, err := client.Get(ts.URL + tc.path)
-
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if res.StatusCode != tc.expectedStatusCode {
-			t.Errorf("for path %s want status %d OK, got %d", tc.path, tc.expectedStatusCode, res.StatusCode)
-		}
-	}
-}
 func TestGuideHandlerRendersMap(t *testing.T) {
 	t.Parallel()
 	s := openTmpStorage(t)
@@ -206,7 +201,7 @@ func TestGuideHandlerRenders404NotFound(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": strconv.FormatInt(1, 10)})
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	handler := server.HandleGuide()
 	handler(rec, req)
 
@@ -286,37 +281,34 @@ func TestCreateGuideHandlerGetRendersForm(t *testing.T) {
 	}
 }
 
-//todo replace s.Guides with count
-//func TestCreateGuideHandlerPostCreatesGuide(t *testing.T) {
-//	t.Parallel()
-//	s := openTmpStorage(t)
-//	server, err := guide.NewServer("localhost:8080", s, os.Stdout)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	rec := httptest.NewRecorder()
-//	form := strings.NewReader("name=Test&description=blah blah&latitude=10&longitude=10")
-//	req := httptest.NewRequest(http.MethodPost, "/guide/create", form)
-//	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-//	handler := server.HandleCreateGuidePost()
-//	handler(rec, req)
-//
-//	res := rec.Result()
-//	if res.StatusCode != http.StatusSeeOther {
-//		t.Errorf("expected status 303 SeeOther, got %d", res.StatusCode)
-//	}
-//	if len(s.Guides) != 1 {
-//		t.Error("want store to contain new guide")
-//	}
-//
-//	g, err := s.GetGuidebyID(s.NextGuideKey - 1)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	if g.Description == "" {
-//		t.Error("want guide description to not be empty")
-//	}
-//}
+func TestCreateGuideHandlerPostCreatesGuide(t *testing.T) {
+	t.Parallel()
+	s := openTmpStorage(t)
+	server, err := guide.NewServer("localhost:8080", s, os.Stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	form := strings.NewReader("name=Test&description=blah blah&latitude=10&longitude=10")
+	req := httptest.NewRequest(http.MethodPost, "/guide/create", form)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	handler := server.HandleCreateGuidePost()
+	handler(rec, req)
+
+	res := rec.Result()
+	if res.StatusCode != http.StatusSeeOther {
+		t.Errorf("expected status 303 SeeOther, got %d", res.StatusCode)
+	}
+
+	g, err := s.GetGuidebyID(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if g.Description == "" {
+		t.Error("want guide description to not be empty")
+	}
+}
 
 func TestCreateGuideHandlerPostFormErrors(t *testing.T) {
 	t.Parallel()
@@ -358,53 +350,6 @@ func TestCreateGuideHandlerPostFormErrors(t *testing.T) {
 		got := string(body)
 		if !strings.Contains(got, tc.want) {
 			t.Errorf("want index to contain %s\nGot:\n%s", tc.want, got)
-		}
-	}
-}
-
-func TestEditGuideRoute(t *testing.T) {
-	t.Parallel()
-	testCases := []struct {
-		path               string
-		expectedStatusCode int
-	}{
-		{"/guide/1/edit", http.StatusOK}, //should be StatusFound 302 but httptest.Client follows redirects
-		{"/guide/2/edit", http.StatusNotFound},
-	}
-
-	s := openTmpStorage(t)
-	g, err := guide.NewGuide("San Cristobal", guide.WithValidStringCoordinates("10", "10"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.CreateGuide(&g)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	freePort, err := freeport.GetFreePort()
-	if err != nil {
-		t.Fatal(err)
-	}
-	address := fmt.Sprintf("localhost:%d", freePort)
-	server, err := guide.NewServer(address, s, os.Stdout)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ts := httptest.NewServer(server.Routes())
-	defer ts.Close()
-
-	client := ts.Client()
-	for _, tc := range testCases {
-		res, err := client.Get(ts.URL + tc.path)
-
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if res.StatusCode != tc.expectedStatusCode {
-			t.Errorf("for path %s want status %d OK, got %d", tc.path, tc.expectedStatusCode, res.StatusCode)
 		}
 	}
 }
@@ -472,22 +417,11 @@ func TestPoiHandlerRendersView(t *testing.T) {
 
 func TestCreatePoiHandlerGetRendersForm(t *testing.T) {
 	t.Parallel()
-	s := openTmpStorage(t)
-	g, err := guide.NewGuide("San Cristobal", guide.WithValidStringCoordinates("10", "10"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.CreateGuide(&g)
-	if err != nil {
-		t.Fatal(err)
-	}
-	server, err := guide.NewServer("localhost:8080", s, os.Stdout)
-	if err != nil {
-		t.Fatal(err)
-	}
+	server := newProvisionedServer(t)
+
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/guide/poi/create/1", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": strconv.FormatInt(1, 10)})
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	handler := server.HandleCreatePoiGet()
 	handler(rec, req)
 
@@ -506,7 +440,6 @@ func TestCreatePoiHandlerGetRendersForm(t *testing.T) {
 	}
 }
 
-// TODO {"/guide/poi/create/1", http.StatusNotFound, "guide not found"}, test poi create on non-existing guide id
 func TestCreatePoiHandlerErrors(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
@@ -514,8 +447,8 @@ func TestCreatePoiHandlerErrors(t *testing.T) {
 		statusCode int
 		want       string
 	}{
-		{"/guide/poi/create", http.StatusBadRequest, "no guideid provided"},
-		{"/guide/poi/create/one", http.StatusBadRequest, "no guideid provided"},
+		{"/guide/1/poi/create", http.StatusBadRequest, "no guideid provided"},
+		{"/guide/1/poi/create/one", http.StatusBadRequest, "no guideid provided"},
 		//{"/guide/poi/create/1", http.StatusNotFound, "guide not found"},
 	}
 	s := openTmpStorage(t)
@@ -596,7 +529,7 @@ func TestCreatePoiHandlerFormErrors(t *testing.T) {
 	}
 }
 
-func TestCreatePoiHandlerPost(t *testing.T) {
+func TestCreatePoiHandlerPostCreatesPoi(t *testing.T) {
 	t.Parallel()
 	s := openTmpStorage(t)
 	g, err := guide.NewGuide("San Cristobal", guide.WithValidStringCoordinates("16.7371", "-92.6375"))
@@ -622,7 +555,7 @@ func TestCreatePoiHandlerPost(t *testing.T) {
 	target := fmt.Sprintf("/guide/poi/create/%d", g.Id)
 	req := httptest.NewRequest(http.MethodPost, target, form)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req = mux.SetURLVars(req, map[string]string{"id": strconv.FormatInt(1, 10)})
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	handler := server.HandleCreatePoiPost()
 	handler(rec, req)
 
@@ -670,7 +603,7 @@ func TestDeletePoiHandlerDeletesPoi(t *testing.T) {
 	req := httptest.NewRequest(http.MethodDelete, "/", nil)
 	req = mux.SetURLVars(req,
 		map[string]string{
-			"id":      strconv.FormatInt(poi.Id, 10),
+			"poiID":   strconv.FormatInt(poi.Id, 10),
 			"guideID": strconv.FormatInt(g.Id, 10),
 		})
 	handler := server.HandleDeletePoi()
@@ -690,8 +623,7 @@ func TestSearchGuide(t *testing.T) {
 	t.Parallel()
 	server := newProvisionedServer(t)
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/guide/search?q=guide", nil)
-	//req = mux.SetURLVars(req, map[string]string{"q": "guide"})
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
 	handler := server.HandleGuides()
 	handler(rec, req)
 
@@ -785,6 +717,70 @@ func TestServer_HandleGuideCount(t *testing.T) {
 	}
 }
 
+func TestServer_HandleEditPoiGetRendersForm(t *testing.T) {
+	t.Parallel()
+	server := newProvisionedServer(t)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req = mux.SetURLVars(req, map[string]string{
+		"guideID": "1",
+		"poiID":   "1",
+	})
+	handler := server.HandleEditPoiGet()
+	handler(rec, req)
+
+	res := rec.Result()
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("expected status 200 OK, got %d", res.StatusCode)
+	}
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "POI Values"
+	got := string(body)
+	if !strings.Contains(got, want) {
+		t.Errorf("want index to contain %s\nGot:\n%s", want, got)
+	}
+
+}
+
+func TestEditPoiHandlerPatchEditsPoi(t *testing.T) {
+	t.Parallel()
+	storage := openTmpStorage(t)
+	s := newProvisionedServerWithStore(storage, t)
+
+	rec := httptest.NewRecorder()
+	form := strings.NewReader("name=Test&description=blah blah&latitude=10&longitude=10")
+	target := "/guide/1/poi/1"
+	req := httptest.NewRequest(http.MethodPost, target, form)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = mux.SetURLVars(req, map[string]string{
+		"guideID": "1",
+		"poiID":   "1",
+	})
+	handler := s.HandleEditPoiPatch()
+	handler(rec, req)
+
+	res := rec.Result()
+	if res.StatusCode != http.StatusSeeOther {
+		t.Errorf("expected status 303 SeeOther, got %d", res.StatusCode)
+	}
+
+	poi, err := storage.GetPoi(1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if poi == nil {
+		t.Error("want guide to contain new poi")
+	}
+
+	if poi.Description != "blah blah" {
+		t.Error("want poi description to be edited")
+	}
+
+}
+
 // test helpers
 func openTmpStorage(t *testing.T) guide.Storage {
 	tempDB := t.TempDir() + t.Name() + ".store"
@@ -832,5 +828,39 @@ func newProvisionedServer(t *testing.T) *guide.Server {
 		t.Fatal(err)
 	}
 	return &server
+}
+func newProvisionedServerWithStore(storage guide.Storage, t *testing.T) *guide.Server {
+	input := []string{"test 1", "guide 1", "test 2"}
+	for _, guideName := range input {
+		g, err := guide.NewGuide(guideName, guide.WithValidStringCoordinates("10", "10"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = storage.CreateGuide(&g)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, poiName := range input {
+			p, err := guide.NewPointOfInterest(poiName, g.Id, guide.PoiWithValidStringCoordinates("10", "10"))
+			if err != nil {
+				t.Fatal(err)
+			}
 
+			err = storage.CreatePoi(&p)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	freePort, err := freeport.GetFreePort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	address := fmt.Sprintf("localhost:%d", freePort)
+	server, err := guide.NewServer(address, storage, os.Stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &server
 }

@@ -51,7 +51,7 @@ func (s *Server) HandleGuides() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		terms := r.URL.Query().Get("q")
 		guides, err := s.store.Search(terms)
-		if err != nil || len(guides) == 0 {
+		if err != nil || (len(guides) == 0 && terms != "") {
 			http.Error(w, "no guide found", http.StatusNotFound)
 			return
 		}
@@ -170,7 +170,7 @@ func (s *Server) HandleEditGuideGet() http.HandlerFunc {
 		}
 		g, err := s.store.GetGuidebyID(id)
 		if err != nil {
-			http.Error(w, "db error", http.StatusNotFound)
+			http.Error(w, "internal server error", http.StatusNotFound)
 			return
 		}
 		if g == nil {
@@ -208,11 +208,11 @@ func (s *Server) HandleEditGuidePost() http.HandlerFunc {
 		}
 		g, err := s.store.GetGuidebyID(id)
 		if err != nil {
-			http.Error(w, "guide Not Found", http.StatusNotFound)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
-		if g.Id == 0 {
-			http.Error(w, "guide not found", http.StatusNotFound)
+		if g == nil {
+			http.Error(w, "guide Not Found", http.StatusNotFound)
 			return
 		}
 
@@ -319,6 +319,8 @@ func (s *Server) HandlePoi() http.HandlerFunc {
 		}
 	}
 }
+
+// todo implement HandlePois() to map poiRows(clean #table-and-form): cancel button, and search
 func (s *Server) HandleCreatePoiGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		guideID := mux.Vars(r)["id"]
@@ -329,12 +331,16 @@ func (s *Server) HandleCreatePoiGet() http.HandlerFunc {
 
 		gid, err := strconv.ParseInt(guideID, 10, 64)
 		if err != nil {
-			http.Error(w, "please provide valid guide Id", http.StatusBadRequest)
+			http.Error(w, "please provide valid guide PoiID", http.StatusBadRequest)
 		}
 
 		g, err := s.store.GetGuidebyID(gid)
 		if err != nil {
-			http.Error(w, "guide not found", http.StatusNotFound)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		if g == nil {
+			http.Error(w, "guide Not Found", http.StatusNotFound)
 			return
 		}
 		poiForm := poiForm{
@@ -346,7 +352,7 @@ func (s *Server) HandleCreatePoiGet() http.HandlerFunc {
 			Longitude:   r.PostFormValue("longitude"),
 		}
 
-		err = s.templateRegistry.renderPage(w, createPoiFormTemplate, poiForm)
+		err = s.templateRegistry.renderPartial(w, createPoiFormTemplate, poiForm)
 		if err != nil {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
@@ -356,31 +362,35 @@ func (s *Server) HandleCreatePoiGet() http.HandlerFunc {
 
 func (s *Server) HandleCreatePoiPost() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		guideID := mux.Vars(r)["id"]
-		if guideID == "" {
+		guideIDString := mux.Vars(r)["id"]
+		if guideIDString == "" {
 			http.Error(w, "no guideid provided", http.StatusBadRequest)
 			return
 		}
 
-		gid, err := strconv.ParseInt(guideID, 10, 64)
+		guideID, err := strconv.ParseInt(guideIDString, 10, 64)
 		if err != nil {
-			http.Error(w, "please provide valid guide Id", http.StatusBadRequest)
+			http.Error(w, "please provide valid guide id", http.StatusBadRequest)
 		}
 
-		g, err := s.store.GetGuidebyID(gid)
+		g, err := s.store.GetGuidebyID(guideID)
 		if err != nil {
-			http.Error(w, "guide not found", http.StatusNotFound)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		if g == nil {
+			http.Error(w, "guide Not Found", http.StatusNotFound)
 			return
 		}
 		poiForm := poiForm{
-			GuideID:     gid,
+			GuideID:     guideID,
 			GuideName:   g.Name,
 			Name:        r.PostFormValue("name"),
 			Description: r.PostFormValue("description"),
 			Latitude:    r.PostFormValue("latitude"),
 			Longitude:   r.PostFormValue("longitude"),
 		}
-		poi, err := NewPointOfInterest(poiForm.Name, gid, PoiWithValidStringCoordinates(poiForm.Latitude, poiForm.Longitude), PoiWithDescription(poiForm.Description))
+		poi, err := NewPointOfInterest(poiForm.Name, guideID, PoiWithValidStringCoordinates(poiForm.Latitude, poiForm.Longitude), PoiWithDescription(poiForm.Description))
 		if err != nil {
 			poiForm.Errors = append(poiForm.Errors, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
@@ -401,8 +411,150 @@ func (s *Server) HandleCreatePoiPost() http.HandlerFunc {
 			return
 		}
 
-		gURL := fmt.Sprintf("/guide/%d", gid)
-		http.Redirect(w, r, gURL, http.StatusSeeOther)
+		pois := s.store.GetAllPois(guideID)
+		err = s.templateRegistry.renderPartial(w, poiRowsTemplate, pois)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+		}
+	}
+}
+func (s *Server) HandleEditPoiGet() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		guideIDString := mux.Vars(r)["guideID"]
+		if guideIDString == "" {
+			http.Error(w, "no guide ID provided", http.StatusBadRequest)
+			return
+		}
+		poiIDString := mux.Vars(r)["poiID"]
+		if poiIDString == "" {
+			http.Error(w, "no poi ID provided", http.StatusBadRequest)
+			return
+		}
+
+		guideID, err := strconv.ParseInt(guideIDString, 10, 64)
+		if err != nil {
+			http.Error(w, "not able to parse guide ID", http.StatusBadRequest)
+			return
+		}
+		poiID, err := strconv.ParseInt(poiIDString, 10, 64)
+		if err != nil {
+			http.Error(w, "not able to parse poi ID", http.StatusBadRequest)
+			return
+		}
+
+		g, err := s.store.GetGuidebyID(guideID)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		if g == nil {
+			http.Error(w, "guide Not Found", http.StatusNotFound)
+			return
+		}
+
+		poi, err := s.store.GetPoi(guideID, poiID)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		if poi == nil {
+			http.Error(w, "guide Not Found", http.StatusNotFound)
+			return
+		}
+
+		poiForm := poiForm{
+			PoiID:       poiID,
+			GuideID:     g.Id,
+			GuideName:   g.Name,
+			Name:        poi.Name,
+			Description: poi.Description,
+			Latitude:    fmt.Sprintf("%f", poi.Coordinate.Latitude),
+			Longitude:   fmt.Sprintf("%f", poi.Coordinate.Longitude),
+			Errors:      []string{},
+		}
+
+		err = s.templateRegistry.renderPartial(w, editPoiFormTemplate, poiForm)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+		}
+		return
+	}
+}
+func (s *Server) HandleEditPoiPatch() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		guideIDString := mux.Vars(r)["guideID"]
+		if guideIDString == "" {
+			http.Error(w, "no guide ID provided", http.StatusBadRequest)
+			return
+		}
+		poiIDString := mux.Vars(r)["poiID"]
+		if poiIDString == "" {
+			http.Error(w, "no poi ID provided", http.StatusBadRequest)
+			return
+		}
+
+		guideID, err := strconv.ParseInt(guideIDString, 10, 64)
+		if err != nil {
+			http.Error(w, "not able to parse guide ID", http.StatusBadRequest)
+			return
+		}
+		poiID, err := strconv.ParseInt(poiIDString, 10, 64)
+		if err != nil {
+			http.Error(w, "not able to parse poi ID", http.StatusBadRequest)
+			return
+		}
+
+		g, err := s.store.GetGuidebyID(guideID)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		if g == nil {
+			http.Error(w, "guide Not Found", http.StatusNotFound)
+			return
+		}
+
+		poi, err := s.store.GetPoi(guideID, poiID)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		if poi == nil {
+			http.Error(w, "poi Not Found", http.StatusNotFound)
+			return
+		}
+		coordinates, err := parseCoordinates(r.PostFormValue("latitude"), r.PostFormValue("longitude"))
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		poi.Name = r.PostFormValue("name")
+		poi.Description = r.PostFormValue("description")
+		poi.Coordinate = coordinates
+		err = s.store.UpdatePoi(poi)
+		if err != nil {
+			poiForm := poiForm{
+				PoiID:       poiID,
+				GuideID:     guideID,
+				GuideName:   g.Name,
+				Name:        poi.Name,
+				Description: poi.Description,
+				Latitude:    r.PostFormValue("latitude"),
+				Longitude:   r.PostFormValue("longitude"),
+			}
+			poiForm.Errors = append(poiForm.Errors, err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			err := s.templateRegistry.renderPage(w, editPoiFormTemplate, poiForm)
+			if err != nil {
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+			}
+			return
+		}
+		pois := s.store.GetAllPois(guideID)
+		err = s.templateRegistry.renderPartial(w, poiRowsTemplate, pois)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -489,6 +641,8 @@ func (s *Server) Routes() http.Handler {
 	router.HandleFunc("/guide/{id}/poi/create", s.HandleCreatePoiGet()).Methods(http.MethodGet)
 	router.HandleFunc("/guide/{id}/poi/create", s.HandleCreatePoiPost()).Methods(http.MethodPost)
 	router.HandleFunc("/guide/{guideID}/poi/{poiID}", s.HandlePoi()).Methods(http.MethodGet)
+	router.HandleFunc("/guide/{guideID}/poi/{poiID}/edit", s.HandleEditPoiGet()).Methods(http.MethodGet)
+	router.HandleFunc("/guide/{guideID}/poi/{poiID}", s.HandleEditPoiPatch()).Methods(http.MethodPatch)
 	router.HandleFunc("/guide/{guideID}/poi/{poiID}", s.HandleDeletePoi()).Methods(http.MethodDelete)
 	router.HandleFunc("/", HandleIndex())
 	return router
@@ -499,10 +653,10 @@ func templateRoutes() *templateRegistry {
 	partialTemplates := map[string]*template.Template{}
 
 	//todo iterate over template dir
-	for _, templateName := range []string{indexTemplate, guideTemplate, createGuideFormTemplate, editGuideFormTemplate, createPoiFormTemplate} {
+	for _, templateName := range []string{indexTemplate, guideTemplate, createGuideFormTemplate, editGuideFormTemplate} {
 		pageTemplates[templateName] = template.Must(template.ParseFS(fs, templatesDir+templateName, templatesDir+baseTemplate, templatesDir+guideRowsTemplate, templatesDir+poiRowsTemplate))
 	}
-	for _, templateName := range []string{guideRowsTemplate, poiViewTemplate} {
+	for _, templateName := range []string{guideRowsTemplate, poiRowsTemplate, poiViewTemplate, editPoiFormTemplate, createPoiFormTemplate} {
 		partialTemplates[templateName] = template.Must(template.ParseFS(fs, templatesDir+templateName))
 	}
 
@@ -551,5 +705,6 @@ const (
 	createGuideFormTemplate = "createGuideForm.html"
 	editGuideFormTemplate   = "editGuideForm.html"
 	createPoiFormTemplate   = "createPoiForm.html"
+	editPoiFormTemplate     = "editPoiForm.html"
 	poiViewTemplate         = "poiView.html"
 )

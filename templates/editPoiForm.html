@@ -1,4 +1,4 @@
-{{define "createPoiForm.html"}}
+{{define "editPoiForm.html"}}
 <div class="columns">
     <div class="column ">
         <article class="message is-danger" id="errors">
@@ -6,8 +6,7 @@
             <p class="message-body"> {{ . }}</p>
             {{end}}
         </article>
-        <form class="form" action="/guide/{{.GuideID}}/poi/create" method="post" hx-target="#table-and-form">
-            <!--            <form class="form" hx-target="#table-and-form" action="/guide/{{.GuideID}}/poi/create" method="post">-->
+        <form class="form" hx-patch="/guide/{{.GuideID}}/poi/{{.PoiID}}" hx-target="#table-and-form">
             <fieldset>
                 <legend>POI Values</legend>
                 <input type="hidden" name="gid" value="{{.GuideID}}">
@@ -38,16 +37,13 @@
                 </div>
                 <div class="field">
                     <div class="control">
-                        <button class="button">Create</button>
+                        <button class="button" >Save</button>
                     </div>
                 </div>
             </fieldset>
         </form>
         <div>
-            <!--            <a href="/guide/{{.GuideID}}" hx-target="#table-and-form">cancel</a>-->
-            <a hx-target="#poi-focus" href="#">cancel</a>
-            <!--            ideally something to clear the poi-focus div-->
-
+            <a href="/guide/{{.GuideID}}">cancel</a>
         </div>
     </div>
 </div>

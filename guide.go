@@ -158,6 +158,7 @@ type guideForm struct {
 }
 
 type poiForm struct {
+	PoiID                                  int64
 	GuideID                                int64
 	GuideName                              string
 	Name, Description, Latitude, Longitude string

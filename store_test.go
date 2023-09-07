@@ -137,7 +137,7 @@ func TestSQLiteStore_CountGuides(t *testing.T) {
 
 	got := tempDB.CountGuides()
 	if want != got {
-		t.Errorf("want CountGuides to return %d guides, got %d", want, got)
+		t.Errorf("want  to return %d guides, got %d", want, got)
 	}
 }
 

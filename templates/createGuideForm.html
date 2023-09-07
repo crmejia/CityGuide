@@ -2,11 +2,9 @@
 {{define "body"}}
 <div class="columns">
     <div class="column">
-        <article class="message is-danger" id="errors">
-            {{range .Errors}}
-            <p class="message-body"> {{ . }}</p>
-            {{end}}
-        </article>
+        <p class="message is-danger" id="errors">
+           here some  {{ .Errors }}
+        </p>
         <form class="form" action="/guide/create" method="post">
             <fieldset>
                 <legend>Guide Values</legend>

@@ -1,13 +1,29 @@
 {{define "poiRows.html"}}
-{{range .Pois}}
-<tr>
-    <td><a href="#" hx-get="/guide/{{.GuideID}}/poi/{{.Id}}" hx-target="#poi-focus">{{.Name}}</a></td>
-    <td>{{.Description}}</td>
-    <td>
-        <a href="#">Edit</a>
-        <a href="#" hx-delete="/guide/{{.GuideID}}/poi/{{.Id}}" hx-swap="outerHTML swap:1s"
-           hx-confirm="Are you sure you want to delete this poi?" hx-target="closest tr">Delete</a>
-    </td>
-</tr>
-{{end}}
+<div id="table-and-form" class="columns">
+    <div class="column">
+        <table class="table">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Description</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{range .}}
+            <tr>
+                <td><a href="#" hx-get="/guide/{{.GuideID}}/poi/{{.Id}}" hx-target="#poi-focus">{{.Name}}</a></td>
+                <td>{{.Description}}</td>
+                <td>
+                    <a href="#" hx-get="/guide/{{.GuideID}}/poi/{{.Id}}/edit" hx-target="#poi-focus">Edit</a>
+                    <a href="#" hx-delete="/guide/{{.GuideID}}/poi/{{.Id}}" hx-swap="outerHTML swap:1s"
+                       hx-confirm="Are you sure you want to delete this poi?" hx-target="closest tr">Delete</a>
+                </td>
+            </tr>
+            {{end}}
+            </tbody>
+        </table>
+    </div>
+    <div id="poi-focus" class="column">
+    </div>
+</div>
 {{end}}

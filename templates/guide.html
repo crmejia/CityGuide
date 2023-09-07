@@ -31,27 +31,25 @@
 <div id="map" style="width: 600px; height: 400px;">
     {{template "mapscript" .}}
 </div>
-<div class="columns">
-    <div class="column">
-<table class="table">
-    <thead>
-    <tr>
-        <th>Name</th>
-        <th>Description</th>
-    </tr>
-    </thead>
-    <tbody>
-        {{template "poiRows.html" .}}
-    </tbody>
-</table>
-    </div>
-    <div class="column" id="poi-focus">
-    </div>
-</div>
+<!--<div id="table-and-form" class="columns">-->
+<!--    <div class="column">-->
+<!--        <table class="table">-->
+<!--            <thead>-->
+<!--            <tr>-->
+<!--                <th>Name</th>-->
+<!--                <th>Description</th>-->
+<!--            </tr>-->
+<!--            </thead>-->
+<!--            <tbody>-->
+            {{template "poiRows.html" .Pois}}
+<!--            </tbody>-->
+<!--        </table>-->
+<!--    </div>-->
+<!--    <div id="poi-focus" class="column" >-->
+<!--    </div>-->
+<!--</div>-->
 <p>
-    <a class="button" href="/guide/{{.Id}}/poi/create">Add Poi</a>
+    <a class="button" href="#" hx-get="/guide/{{.Id}}/poi/create" hx-target="#poi-focus">Add Poi</a>
     <a href="/guides">back</a>
 </p>
-</body>
-</html>
 {{end}}
