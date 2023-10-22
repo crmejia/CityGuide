@@ -433,7 +433,7 @@ func TestCreatePoiHandlerGetRendersForm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "Add Point of Interest to"
+	want := "Create"
 	got := string(body)
 	if !strings.Contains(got, want) {
 		t.Errorf("want index to contain %s\nGot:\n%s", want, got)
@@ -489,27 +489,12 @@ func TestCreatePoiHandlerFormErrors(t *testing.T) {
 		{"name=test&latitude=notanumber&longitude=10", "latitude has to be a number"},
 		{"name=test&latitude=10&longitude=notanumber", "longitude has to be a number"},
 	}
-	s := openTmpStorage(t)
-	g, err := guide.NewGuide("test", guide.WithValidStringCoordinates("10", "10"))
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	err = s.CreateGuide(&g)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	server, err := guide.NewServer("localhost:8080", s, os.Stdout)
-	if err != nil {
-		t.Fatal(err)
-	}
+	server := newProvisionedServer(t)
 	handler := server.HandleCreatePoiPost()
 	for _, tc := range testCases {
 		rec := httptest.NewRecorder()
-
-		target := fmt.Sprintf("/guide/poi/create/%d", g.Id)
-		req := httptest.NewRequest(http.MethodPost, target, strings.NewReader(tc.form))
+		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(tc.form))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		req = mux.SetURLVars(req, map[string]string{"id": strconv.FormatInt(1, 10)})
 		handler(rec, req)
@@ -531,46 +516,28 @@ func TestCreatePoiHandlerFormErrors(t *testing.T) {
 
 func TestCreatePoiHandlerPostCreatesPoi(t *testing.T) {
 	t.Parallel()
-	s := openTmpStorage(t)
-	g, err := guide.NewGuide("San Cristobal", guide.WithValidStringCoordinates("16.7371", "-92.6375"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.CreateGuide(&g)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	freePort, err := freeport.GetFreePort()
-	if err != nil {
-		t.Fatal(err)
-	}
-	address := fmt.Sprintf("localhost:%d", freePort)
-	server, err := guide.NewServer(address, s, os.Stdout)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rec := httptest.NewRecorder()
 	form := strings.NewReader("name=Test&description=blah blah&latitude=10&longitude=10")
-	target := fmt.Sprintf("/guide/poi/create/%d", g.Id)
-	req := httptest.NewRequest(http.MethodPost, target, form)
+	req := httptest.NewRequest(http.MethodPost, "/", form)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+
+	server := newProvisionedServer(t)
 	handler := server.HandleCreatePoiPost()
+
+	rec := httptest.NewRecorder()
 	handler(rec, req)
 
 	res := rec.Result()
-	if res.StatusCode != http.StatusSeeOther {
-		t.Errorf("expected status 303 SeeOther, got %d", res.StatusCode)
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("expected status 200 OK, got %d", res.StatusCode)
 	}
-	pois := s.GetAllPois(g.Id)
-	if len(pois) != 1 {
-		t.Error("want store to contain new poi")
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	got := pois[0]
-	if got.Description != "blah blah" {
-		t.Error("want poi description to be set")
+	got := string(body)
+	if !strings.Contains(got, "blah blah") {
+		t.Error("want html to contain new poi")
 	}
 }
 
@@ -752,8 +719,7 @@ func TestEditPoiHandlerPatchEditsPoi(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	form := strings.NewReader("name=Test&description=blah blah&latitude=10&longitude=10")
-	target := "/guide/1/poi/1"
-	req := httptest.NewRequest(http.MethodPost, target, form)
+	req := httptest.NewRequest(http.MethodPost, "/", form)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = mux.SetURLVars(req, map[string]string{
 		"guideID": "1",
@@ -763,8 +729,8 @@ func TestEditPoiHandlerPatchEditsPoi(t *testing.T) {
 	handler(rec, req)
 
 	res := rec.Result()
-	if res.StatusCode != http.StatusSeeOther {
-		t.Errorf("expected status 303 SeeOther, got %d", res.StatusCode)
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("expected status 200 OK, got %d", res.StatusCode)
 	}
 
 	poi, err := storage.GetPoi(1, 1)

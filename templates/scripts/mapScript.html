@@ -1,0 +1,16 @@
+{{define "mapScript.html"}}
+<script>
+    let map = L.map('map').setView([{{.Coordinate.Latitude}}, {{.Coordinate.Longitude}}], 15);
+
+    let tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    let pois = {{.Pois}}
+    pois.forEach( function (poi) {
+        let marker = L.marker([poi.Coordinate.Latitude,poi.Coordinate.Longitude]).addTo(map);
+        marker.bindPopup(poi.Name + " TBD description")
+    })
+</script>
+{{end}}

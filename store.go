@@ -35,7 +35,6 @@ func OpenSQLiteStorage(dbPath string) (Storage, error) {
 		return &sqliteStore{}, err
 	}
 
-	//todo actually now that I think about it. Is this the migration part of a webapp?
 	for _, stmt := range []string{pragmaWALEnabled, pragma500BusyTimeout, pragmaForeignKeysON} {
 		_, err = db.Exec(stmt, nil)
 		if err != nil {
@@ -52,12 +51,6 @@ func OpenSQLiteStorage(dbPath string) (Storage, error) {
 	if err != nil {
 		return &sqliteStore{}, err
 	}
-
-	//leaving commented to help with the concept of migration
-	//_, err = db.Exec(createUserTable)
-	//if err != nil {
-	//	return &sqliteStore{}, err
-	//}
 
 	store := sqliteStore{
 		db: db,

@@ -7,7 +7,6 @@
             {{end}}
         </article>
         <form class="form" action="/guide/{{.GuideID}}/poi/create" method="post" hx-target="#table-and-form">
-            <!--            <form class="form" hx-target="#table-and-form" action="/guide/{{.GuideID}}/poi/create" method="post">-->
             <fieldset>
                 <legend>POI Values</legend>
                 <input type="hidden" name="gid" value="{{.GuideID}}">

@@ -1,25 +1,5 @@
 {{define "title"}}{{.Name}}{{end}}
 
-{{define "mapscript"}}
-<!-- ---------------------------->
-<!--TODO move to another file-->
-<!-- ---------------------------->
-<script>
-    let map = L.map('map').setView([{{.Coordinate.Latitude}}, {{.Coordinate.Longitude}}], 15);
-
-    let tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }).addTo(map);
-
-    let pois = {{.Pois}}
-    pois.forEach( function (poi) {
-        let marker = L.marker([poi.Coordinate.Latitude,poi.Coordinate.Longitude]).addTo(map);
-        marker.bindPopup(poi.Name + " TBD description")
-    })
-</script>
-{{end}}
-
 {{define "body"}}
 <a class="button medium" href="/guide/{{.Id}}/edit">Edit</a>
 <button id="delete-btn" class="button is-danger medium" hx-delete="/guide/{{.Id}}" hx-target="body" hx-push-url="true"
@@ -29,25 +9,9 @@
 <p class="content"> {{.Description}}</p>
 <p class="content">Lat: {{.Coordinate.Latitude}}, Lon:{{.Coordinate.Longitude}}</p>
 <div id="map" style="width: 600px; height: 400px;">
-    {{template "mapscript" .}}
 </div>
-<!--<div id="table-and-form" class="columns">-->
-<!--    <div class="column">-->
-<!--        <table class="table">-->
-<!--            <thead>-->
-<!--            <tr>-->
-<!--                <th>Name</th>-->
-<!--                <th>Description</th>-->
-<!--            </tr>-->
-<!--            </thead>-->
-<!--            <tbody>-->
-            {{template "poiRows.html" .Pois}}
-<!--            </tbody>-->
-<!--        </table>-->
-<!--    </div>-->
-<!--    <div id="poi-focus" class="column" >-->
-<!--    </div>-->
-<!--</div>-->
+    {{template "poiRows.html" .Pois}}
+    {{template "mapScript.html" . }}
 <p>
     <a class="button" href="#" hx-get="/guide/{{.Id}}/poi/create" hx-target="#poi-focus">Add Poi</a>
     <a href="/guides">back</a>

@@ -57,8 +57,6 @@ type coordinate struct {
 	Latitude, Longitude float64
 }
 
-//todo type boundedCoordinate coordinate
-
 func newCoordinate(latitude, longitude float64) (coordinate, error) {
 	if latitude < -90 || latitude > 90 {
 		return coordinate{}, errors.New("latitude has to be in the -90°, 90° range")

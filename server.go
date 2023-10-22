@@ -394,7 +394,7 @@ func (s *Server) HandleCreatePoiPost() http.HandlerFunc {
 		if err != nil {
 			poiForm.Errors = append(poiForm.Errors, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
-			err := s.templateRegistry.renderPage(w, createPoiFormTemplate, poiForm)
+			err = s.templateRegistry.renderPartial(w, createPoiFormTemplate, poiForm)
 			if err != nil {
 				http.Error(w, "internal server error", http.StatusInternalServerError)
 			}
@@ -404,7 +404,7 @@ func (s *Server) HandleCreatePoiPost() http.HandlerFunc {
 		if err != nil {
 			poiForm.Errors = append(poiForm.Errors, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
-			err := s.templateRegistry.renderPage(w, createPoiFormTemplate, poiForm)
+			err := s.templateRegistry.renderPartial(w, createPoiFormTemplate, poiForm)
 			if err != nil {
 				http.Error(w, "internal server error", http.StatusInternalServerError)
 			}
@@ -652,9 +652,8 @@ func templateRoutes() *templateRegistry {
 	pageTemplates := map[string]*template.Template{}
 	partialTemplates := map[string]*template.Template{}
 
-	//todo iterate over template dir
 	for _, templateName := range []string{indexTemplate, guideTemplate, createGuideFormTemplate, editGuideFormTemplate} {
-		pageTemplates[templateName] = template.Must(template.ParseFS(fs, templatesDir+templateName, templatesDir+baseTemplate, templatesDir+guideRowsTemplate, templatesDir+poiRowsTemplate))
+		pageTemplates[templateName] = template.Must(template.ParseFS(fs, templatesDir+templateName, templatesDir+baseTemplate, templatesDir+guideRowsTemplate, templatesDir+poiRowsTemplate, templatesDir+mapScriptTemplate))
 	}
 	for _, templateName := range []string{guideRowsTemplate, poiRowsTemplate, poiViewTemplate, editPoiFormTemplate, createPoiFormTemplate} {
 		partialTemplates[templateName] = template.Must(template.ParseFS(fs, templatesDir+templateName))
@@ -679,7 +678,6 @@ type templateRegistry struct {
 func (t *templateRegistry) renderPage(w io.Writer, templateFile string, data any) error {
 	tmpl, ok := t.pageTemplates[templateFile]
 	if ok {
-		//todo in theory tmpl.Execute should be enough as template already created with base
 		return tmpl.ExecuteTemplate(w, baseTemplate, data)
 
 	}
@@ -690,7 +688,6 @@ func (t *templateRegistry) renderPartial(w io.Writer, templateFile string, data 
 	tmpl, ok := t.partialTemplates[templateFile]
 	if ok {
 		return tmpl.Execute(w, data)
-		//return tmpl.ExecuteTemplate(w, guideRowsTemplate, data)
 	}
 	return errors.New("Template not found ->" + templateFile)
 }
@@ -702,6 +699,7 @@ const (
 	guideRowsTemplate       = "guideRows.html"
 	poiRowsTemplate         = "poiRows.html"
 	guideTemplate           = "guide.html"
+	mapScriptTemplate       = "scripts/mapScript.html"
 	createGuideFormTemplate = "createGuideForm.html"
 	editGuideFormTemplate   = "editGuideForm.html"
 	createPoiFormTemplate   = "createPoiForm.html"
