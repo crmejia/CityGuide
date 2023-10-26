@@ -609,12 +609,16 @@ func RunServer(output io.Writer) {
 		fmt.Fprintln(output, "no address provided, defaulting to :8080")
 		address = ":8080"
 	}
-	homeDir, err := homedir.Dir()
-	if err != nil {
-		fmt.Fprintln(output, err)
-		return
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		homeDir, err := homedir.Dir()
+		if err != nil {
+			fmt.Fprintln(output, err)
+			return
+		}
+		dbPath = homeDir
 	}
-	storage, err := OpenSQLiteStorage(homeDir + "/city_guide.db")
+	storage, err := OpenSQLiteStorage(dbPath + "/city_guide.db")
 	if err != nil {
 		fmt.Fprintln(output, err)
 		return
