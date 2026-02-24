@@ -5,8 +5,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"golang.org/x/crypto/argon2"
 	"regexp"
+
+	"golang.org/x/crypto/argon2"
 )
 
 type user struct {
@@ -35,7 +36,7 @@ func newUser(username, password, confirmPassword, email string) (user, error) {
 		return user{}, errors.New("email has to be a valid address")
 	}
 
-	salt, err := generateSalt(saltSize)
+	salt, err := generateRandomToken(saltSize)
 	hashedPassword := argon2.IDKey([]byte(password), salt, argon2Time, argon2Memory, argon2Threads, argon2KeyLen)
 	encodedSalt := base64.RawStdEncoding.EncodeToString(salt)
 	encodedPassword := base64.RawStdEncoding.EncodeToString(hashedPassword)
@@ -51,7 +52,7 @@ func newUser(username, password, confirmPassword, email string) (user, error) {
 	return u, nil
 }
 
-func generateSalt(size int) ([]byte, error) {
+func generateRandomToken(size int) ([]byte, error) {
 	b := make([]byte, size)
 	_, err := rand.Read(b)
 	if err != nil {

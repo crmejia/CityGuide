@@ -616,8 +616,10 @@ func RunServer(output io.Writer) {
 			fmt.Fprintln(output, err)
 			return
 		}
+		fmt.Fprintln(output, "not path provided, defaulting to homedir")
 		dbPath = homeDir
 	}
+	fmt.Fprintf(output, "DB_PATH = %s\n", dbPath)
 	storage, err := OpenSQLiteStorage(dbPath + "/city_guide.db")
 	if err != nil {
 		fmt.Fprintln(output, err)
